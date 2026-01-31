@@ -1,0 +1,159 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>The Historian</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@photo-sphere-viewer/core/index.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@photo-sphere-viewer/markers-plugin/index.min.css" />
+    <style>
+      body {
+        font-family: 'Lato', sans-serif;
+        background-color: #020617; /* Slate 950 */
+        color: #e2e8f0; /* Slate 200 */
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+      }
+      h1, h2, h3, .serif {
+        font-family: 'Cinzel', serif;
+      }
+      
+      /* Film Grain Animation using a safe SVG data URI */
+      @keyframes noise {
+        0%, 100% { transform: translate(0, 0); }
+        10% { transform: translate(-5%, -5%); }
+        20% { transform: translate(-10%, 5%); }
+        30% { transform: translate(5%, -10%); }
+        40% { transform: translate(-5%, 15%); }
+        50% { transform: translate(-10%, 5%); }
+        60% { transform: translate(15%, 0); }
+        70% { transform: translate(0, 10%); }
+        80% { transform: translate(-15%, 0); }
+        90% { transform: translate(10%, 5%); }
+      }
+
+      .noise-overlay {
+        position: fixed;
+        top: -50%;
+        left: -50%;
+        right: -50%;
+        bottom: -50%;
+        width: 200%;
+        height: 200%;
+        background: transparent url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E") repeat 0 0;
+        animation: noise .2s infinite;
+        opacity: .04;
+        visibility: visible;
+        z-index: 60;
+        pointer-events: none;
+      }
+
+      /* Custom Range Slider Styling */
+      input[type=range] {
+        -webkit-appearance: none; 
+        background: transparent; 
+      }
+      input[type=range]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        height: 24px;
+        width: 24px;
+        border-radius: 50%;
+        background: #fbbf24;
+        cursor: pointer;
+        margin-top: -10px; 
+        box-shadow: 0 0 15px rgba(251, 191, 36, 0.6);
+        border: 2px solid #0f172a;
+        transition: transform 0.1s ease;
+      }
+      input[type=range]:active::-webkit-slider-thumb {
+        transform: scale(1.2);
+      }
+      input[type=range]::-webkit-slider-runnable-track {
+        width: 100%;
+        height: 4px;
+        cursor: pointer;
+        background: rgba(71, 85, 105, 0.4);
+        border-radius: 2px;
+      }
+      
+      .scrollbar-hide::-webkit-scrollbar {
+          display: none;
+      }
+      .scrollbar-hide {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+      }
+      
+      .temporal-glow {
+        box-shadow: 0 0 40px rgba(251, 191, 36, 0.15);
+      }
+
+      /* Photo Sphere Viewer Customization */
+      .psv-container {
+        background: black !important;
+      }
+      .psv-navbar {
+        display: none !important;
+      }
+
+      /* Pulse Marker Animation */
+      @keyframes pulse-ring {
+        0% { transform: scale(.33); }
+        80%, 100% { opacity: 0; }
+      }
+      @keyframes pulse-dot {
+        0% { transform: scale(.8); }
+        50% { transform: scale(1); }
+        100% { transform: scale(.8); }
+      }
+      .custom-marker {
+        width: 24px;
+        height: 24px;
+        background: #fbbf24;
+        border-radius: 50%;
+        border: 2px solid white;
+        box-shadow: 0 0 10px rgba(0,0,0,0.5);
+        cursor: pointer;
+        position: relative;
+      }
+      .custom-marker::before {
+        content: '';
+        position: absolute;
+        display: block;
+        width: 300%;
+        height: 300%;
+        box-sizing: border-box;
+        margin-left: -100%;
+        margin-top: -100%;
+        border-radius: 50%;
+        background-color: #fbbf24;
+        animation: pulse-ring 1.25s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@19.0.0",
+    "react-dom": "https://esm.sh/react-dom@19.0.0",
+    "react-dom/client": "https://esm.sh/react-dom@19.0.0/client",
+    "@google/genai": "https://esm.sh/@google/genai@1.38.0",
+    "lucide-react": "https://esm.sh/lucide-react@0.473.0",
+    "three": "https://esm.sh/three@0.170.0",
+    "@photo-sphere-viewer/core": "https://esm.sh/@photo-sphere-viewer/core@5.10.1?deps=three@0.170.0",
+    "@photo-sphere-viewer/markers-plugin": "https://esm.sh/@photo-sphere-viewer/markers-plugin@5.10.1?deps=three@0.170.0",
+    "jspdf": "https://esm.sh/jspdf@2.5.2",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "react/": "https://esm.sh/react@^19.2.3/"
+  }
+}
+</script>
+</head>
+  <body>
+    <div class="noise-overlay"></div>
+    <div id="root"></div>
+  </body>
+</html>

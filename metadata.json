@@ -1,0 +1,7 @@
+{
+  "name": "The Historian",
+  "description": "Experience the spatial-temporal evolution of iconic global landmarks. View historical reconstructions, listen to AI-narrated histories, and visualize the transformation of your own uploaded sites through time.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
