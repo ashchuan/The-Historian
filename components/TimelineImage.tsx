@@ -104,7 +104,7 @@ const TimelineImage: React.FC<TimelineImageProps> = ({
 
       markersPluginRef.current = psvRef.current.getPlugin(MarkersPlugin);
       
-      // Use over-marker for hover interaction
+      // Update: Trigger on hover for 360 view
       markersPluginRef.current.addEventListener('over-marker', ({ marker }: any) => {
         const hotspot = event.hotspots?.find(h => h.id === marker.id);
         if (hotspot && psvRef.current) {
@@ -115,13 +115,13 @@ const TimelineImage: React.FC<TimelineImageProps> = ({
         }
       });
 
-      // Use leave-marker to hide
+      // Update: Hide on leave
       markersPluginRef.current.addEventListener('leave-marker', () => {
         setSelectedHotspot(null);
         setHotspotScreenPos(null);
       });
 
-      // Close tooltip when user interacts with the view (rotate/drag)
+      // Close tooltip when user interacts with the view (panning)
       psvRef.current.addEventListener('position-updated', () => {
         setSelectedHotspot(null);
         setHotspotScreenPos(null);
@@ -161,7 +161,6 @@ const TimelineImage: React.FC<TimelineImageProps> = ({
 
   const handle2DHotspotEnter = (hotspot: SceneHotspot) => {
     setSelectedHotspot(hotspot);
-    // Position based on percentage for 2D view
     setHotspotScreenPos({ x: hotspot.x, y: hotspot.y });
   };
 
@@ -219,8 +218,12 @@ const TimelineImage: React.FC<TimelineImageProps> = ({
                    key={hotspot.id}
                    onMouseEnter={() => handle2DHotspotEnter(hotspot)}
                    onMouseLeave={handle2DHotspotLeave}
-                   className="absolute custom-marker pointer-events-auto transition-transform hover:scale-125 cursor-help"
-                   style={{ left: `${hotspot.x * 100}%`, top: `${hotspot.y * 100}%`, transform: 'translate(-50%, -50%)' }}
+                   className="absolute custom-marker pointer-events-auto transition-all cursor-help"
+                   style={{ 
+                     left: `${hotspot.x * 100}%`, 
+                     top: `${hotspot.y * 100}%`, 
+                     transform: `translate(-50%, -50%) ${selectedHotspot?.id === hotspot.id ? 'scale(1.25)' : 'scale(1)'}` 
+                   }}
                  />
                ))}
 

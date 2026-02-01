@@ -440,7 +440,8 @@ export const generateNarration = async (landmarkName: string, timeline: Timeline
     return await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: storyPrompt,
-      config: { thinkingBudget: 0 }
+      // Fixed: thinkingBudget must be wrapped in thinkingConfig
+      config: { thinkingConfig: { thinkingBudget: 0 } }
     });
   });
 

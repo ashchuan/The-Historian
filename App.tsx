@@ -1,6 +1,6 @@
 
-import React, { useState, useEffect, useRef } from 'react';
-import { Camera, MapPin, Loader2, ArrowLeft, Info, X, ZoomIn, ZoomOut, Maximize, RefreshCw, Globe, Save, Trash2, BookOpen, StickyNote, Mic, Download, FileText } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Camera, MapPin, Loader2, ArrowLeft, Info, X, ZoomIn, ZoomOut, Maximize, RefreshCw, Globe, Save, Trash2, BookOpen, StickyNote, Mic, Download, FileText, CheckCircle2 } from 'lucide-react';
 import { LandmarkData, LoadingState, ViewMode, SceneHotspot, UserNote, ResearchPaper } from './types';
 import * as geminiService from './services/geminiService';
 import * as storageService from './services/storageService';
@@ -13,10 +13,10 @@ import HistorianAgent from './components/HistorianAgent';
 
 const PRESETS = [
   { id: 'eiffel', name: 'Eiffel Tower', location: 'Paris, France', image: 'https://images.unsplash.com/photo-1511739001486-6bfe10ce785f?auto=format&fit=crop&q=80&w=800' },
-  { id: 'sagrada', name: 'Sagrada Família', location: 'Barcelona, Spain', image: 'https://images.unsplash.com/photo-1583779457094-0ddcf20a55e4?auto=format&fit=crop&q=80&w=800' }, 
+  { id: 'sagrada', name: 'Sagrada Família', location: 'Barcelona, Spain', image: 'https://images.unsplash.com/photo-1583779457094-0ddcf20a55e4?auto=format&fit=crop&q=80&w=1200' }, 
   { id: 'colosseum', name: 'Colosseum', location: 'Rome, Italy', image: 'https://images.unsplash.com/photo-1552832230-c0197dd311b5?auto=format&fit=crop&q=80&w=800' },
   { id: 'stpauls', name: "St Paul's Cathedral", location: 'London, UK', image: 'https://images.unsplash.com/photo-1549893072-4bc678117f45?auto=format&fit=crop&q=80&w=800' },
-  { id: 'tajmahal', name: 'Taj Mahal', location: 'Agra, India', image: 'https://images.unsplash.com/photo-1564507592333-c60657451ddc?auto=format&fit=crop&q=80&w=800' },
+  { id: 'tajmahal', name: 'Taj Mahal', location: 'Agra, India', image: 'https://images.unsplash.com/photo-1548013146-72479768bbaa?auto=format&fit=crop&q=80&w=800' },
   { id: 'greatwall', name: 'Great Wall of China', location: 'Huairou, China', image: 'https://images.unsplash.com/photo-1508804185872-d7badad00f7d?auto=format&fit=crop&q=80&w=800' },
 ];
 
@@ -30,6 +30,10 @@ const App: React.FC = () => {
   const [isInfoVisible, setIsInfoVisible] = useState(false);
   const [isPanoramicMode, setIsPanoramicMode] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+
+  // Pre-generation status tracking
+  const [presetStatus, setPresetStatus] = useState<Record<string, 'ready' | 'loading' | 'idle'>>({});
+  const [pregeneratedLandmarks, setPregeneratedLandmarks] = useState<Record<string, LandmarkData>>({});
   
   const [transform, setTransform] = useState({ scale: 1, x: 0, y: 0, rx: 0, ry: 0, rz: 0 });
   const [tilt, setTilt] = useState({ x: 0, y: 0 });
@@ -42,10 +46,67 @@ const App: React.FC = () => {
   useEffect(() => {
     document.body.style.overflow = viewMode === ViewMode.EXPERIENCE ? 'hidden' : 'auto';
     if (viewMode === ViewMode.HOME) {
-      loadSavedLandmarks();
-      loadResearchPapers();
+      loadInitialData();
     }
   }, [viewMode]);
+
+  const loadInitialData = async () => {
+    const all = await storageService.getAllLandmarks();
+    setSavedLandmarks(all);
+    
+    const allPapers = await storageService.getAllResearchPapers();
+    setResearchPapers(allPapers.sort((a, b) => b.timestamp - a.timestamp));
+
+    // Initialize preset status from DB
+    const status: Record<string, 'ready' | 'loading' | 'idle'> = {};
+    const memoryCache: Record<string, LandmarkData> = {};
+    
+    for (const preset of PRESETS) {
+      const cached = all.find(l => l.id === preset.id);
+      if (cached) {
+        status[preset.id] = 'ready';
+        memoryCache[preset.id] = cached;
+      } else {
+        status[preset.id] = 'idle';
+      }
+    }
+    setPresetStatus(status);
+    setPregeneratedLandmarks(memoryCache);
+
+    // Trigger background generation for any idle presets
+    triggerBackgroundQueue(status);
+  };
+
+  const triggerBackgroundQueue = async (currentStatus: Record<string, 'ready' | 'loading' | 'idle'>) => {
+    const idlePresets = PRESETS.filter(p => currentStatus[p.id] === 'idle');
+    // Speed up pre-generation using parallel processing for all idle presets simultaneously
+    await Promise.all(idlePresets.map(preset => pregeneratePreset(preset)));
+  };
+
+  const pregeneratePreset = async (preset: typeof PRESETS[0], force = false) => {
+    setPresetStatus(prev => ({ ...prev, [preset.id]: 'loading' }));
+    try {
+      const timelineEvents = await geminiService.generateTimelinePlan(preset.name, preset.location);
+      const audioNarrative = await geminiService.generateNarration(preset.name, timelineEvents);
+      
+      const newLandmark: LandmarkData = {
+        id: preset.id,
+        name: preset.name,
+        location: preset.location,
+        timeline: timelineEvents,
+        audioNarrative,
+        isCustom: false,
+        userNotes: []
+      };
+
+      await storageService.saveLandmark(newLandmark);
+      setPregeneratedLandmarks(prev => ({ ...prev, [preset.id]: newLandmark }));
+      setPresetStatus(prev => ({ ...prev, [preset.id]: 'ready' }));
+    } catch (error) {
+      console.error(`Pre-generation failed for ${preset.name}:`, error);
+      setPresetStatus(prev => ({ ...prev, [preset.id]: 'idle' }));
+    }
+  };
 
   const loadSavedLandmarks = async () => {
     const all = await storageService.getAllLandmarks();
@@ -72,6 +133,14 @@ const App: React.FC = () => {
   const startExperience = async (base64Image: string | undefined, isCustom: boolean, presetData?: any, ignoreCache = false) => {
     setViewMode(ViewMode.EXPERIENCE);
     const id = presetData?.id || 'unknown';
+
+    // If we have pre-generated data and we aren't ignoring cache, load instantly
+    if (!ignoreCache && pregeneratedLandmarks[id]) {
+      setLandmarkData(pregeneratedLandmarks[id]);
+      setLoadingState({ status: 'ready', progress: 100 });
+      return;
+    }
+
     setLoadingState({ status: 'planning', message: 'Initializing temporal anchor...', progress: 5 });
 
     try {
@@ -141,7 +210,6 @@ const App: React.FC = () => {
       if (cached) {
         setLandmarkData(cached);
         setLoadingState({ status: 'ready', progress: 100 });
-        // Cleanup paper if it already exists as a landmark
         await storageService.deleteResearchPaper(paper.id);
         await loadResearchPapers();
         return;
@@ -183,8 +251,6 @@ const App: React.FC = () => {
 
       setLandmarkData(updatedLandmark);
       await storageService.saveLandmark(updatedLandmark);
-      
-      // Successfully generated landmark from paper, so delete the paper fallback
       await storageService.deleteResearchPaper(paper.id);
       await loadResearchPapers();
       
@@ -223,18 +289,20 @@ const App: React.FC = () => {
     e.stopPropagation();
     if (confirm("Remove this landmark from your collection?")) {
       await storageService.deleteLandmark(id);
-      loadSavedLandmarks();
+      loadInitialData();
     }
   };
 
-  const handleDownloadPaperFromDiscovery = async (id: string, e: React.MouseEvent) => {
+  const handleRefreshPreset = async (preset: typeof PRESETS[0], e: React.MouseEvent) => {
     e.stopPropagation();
-    if (id.startsWith('journey-from-paper-')) {
-      const paperId = id.replace('journey-from-paper-', '');
-      const paper = await storageService.getResearchPaper(paperId);
-      if (paper) {
-        generatePDF(paper);
-      }
+    if (confirm(`Refresh the historical data for ${preset.name}? This will regenerate the timeline and narration.`)) {
+      await storageService.deleteLandmark(preset.id);
+      setPregeneratedLandmarks(prev => {
+        const next = { ...prev };
+        delete next[preset.id];
+        return next;
+      });
+      pregeneratePreset(preset, true);
     }
   };
 
@@ -363,15 +431,46 @@ const App: React.FC = () => {
           <div className="text-left mb-20">
             <h2 className="text-2xl font-serif text-amber-200 uppercase tracking-widest opacity-80 mb-8 border-l-4 border-amber-500 pl-4">Curated Journeys</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {PRESETS.map(preset => (
-                <button key={preset.id} onClick={() => startExperience(undefined, false, preset)} className="group relative h-80 rounded-2xl overflow-hidden shadow-2xl hover:scale-[1.02] transition-all border border-white/5">
-                  <img src={preset.image} alt={preset.name} className="absolute inset-0 w-full h-full object-cover brightness-75 group-hover:brightness-90" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent flex flex-col justify-end p-8 text-left transition-all group-hover:from-amber-950/80">
-                    <h3 className="text-2xl font-serif text-white group-hover:text-amber-400 mb-2">{preset.name}</h3>
-                    <div className="flex items-center gap-2 text-slate-300 text-sm tracking-widest uppercase"><MapPin size={16} className="text-amber-500" />{preset.location}</div>
+              {PRESETS.map(preset => {
+                const status = presetStatus[preset.id] || 'idle';
+                return (
+                  <div key={preset.id} className="group relative h-80 rounded-2xl overflow-hidden shadow-2xl hover:scale-[1.02] transition-all border border-white/5">
+                    <button 
+                      onClick={() => startExperience(undefined, false, preset)} 
+                      className="absolute inset-0 w-full h-full text-left"
+                    >
+                      <img src={preset.image} alt={preset.name} className="absolute inset-0 w-full h-full object-cover brightness-75 group-hover:brightness-90" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent flex flex-col justify-end p-8 transition-all group-hover:from-amber-950/80">
+                        <h3 className="text-2xl font-serif text-white group-hover:text-amber-400 mb-2">{preset.name}</h3>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2 text-slate-300 text-sm tracking-widest uppercase"><MapPin size={16} className="text-amber-500" />{preset.location}</div>
+                          <div className="flex items-center gap-2">
+                             {status === 'loading' ? (
+                               <div className="flex items-center gap-1.5 text-amber-500/60 text-[10px] font-bold uppercase tracking-widest animate-pulse">
+                                 <Loader2 size={12} className="animate-spin" /> Archiving...
+                               </div>
+                             ) : status === 'ready' ? (
+                               <div className="flex items-center gap-1 text-green-500 text-[10px] font-bold uppercase tracking-widest opacity-60 group-hover:opacity-100">
+                                 <CheckCircle2 size={12} /> Ready
+                               </div>
+                             ) : null}
+                          </div>
+                        </div>
+                      </div>
+                    </button>
+                    
+                    <div className="absolute top-4 right-4 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-all z-20">
+                       <button 
+                        onClick={(e) => handleRefreshPreset(preset, e)}
+                        className="p-3 bg-slate-900/60 hover:bg-amber-500 backdrop-blur-md rounded-full text-white/70 hover:text-slate-950 shadow-lg"
+                        title="Regenerate Journey"
+                      >
+                        <RefreshCw size={16} className={status === 'loading' ? 'animate-spin' : ''} />
+                      </button>
+                    </div>
                   </div>
-                </button>
-              ))}
+                );
+              })}
             </div>
           </div>
 
