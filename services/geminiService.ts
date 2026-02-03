@@ -55,14 +55,12 @@ export const decodeStandardAudio = async (
   return await audioContext.decodeAudioData(byteData.buffer);
 };
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 async function retryOperation<T>(
   operation: () => Promise<T>, 
   retries = 3, 
-  baseDelay = 1500
+  baseDelay = 2000
 ): Promise<T> {
   try {
     return await operation();
@@ -70,27 +68,40 @@ async function retryOperation<T>(
     const status = error?.status || error?.code;
     const message = error?.message || "";
     
+    // Check if it's a quota error
+    const isQuotaExhausted = 
+      status === 429 || 
+      message.toLowerCase().includes('quota') || 
+      message.toLowerCase().includes('resource_exhausted') ||
+      message.toLowerCase().includes('429');
+
+    // If limit is 0, retrying won't help unless user changes plan/key
+    if (isQuotaExhausted && message.includes('limit: 0')) {
+      throw new Error("API Quota Exhausted: Your project has reached its daily limit. Please select a Paid Project API Key via the settings icon.");
+    }
+
     const isRetryable = 
       status === 429 || 
       status === 503 || 
       status === 500 || 
       status === 504 ||
-      message.includes('429') || 
-      message.includes('503') ||
-      message.includes('overloaded') ||
-      message.includes('quota');
+      message.toLowerCase().includes('overloaded');
 
     if (retries > 0 && isRetryable) {
-      const delay = baseDelay + Math.random() * 1000;
+      const delay = baseDelay + Math.random() * 2000;
       await wait(delay);
-      return retryOperation(operation, retries - 1, baseDelay * 1.5);
+      return retryOperation(operation, retries - 1, baseDelay * 2);
     }
     throw error;
   }
 }
 
+// Function to get a fresh AI instance right before call
+const getAI = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
+
 export const identifyLandmark = async (imageBase64: string): Promise<{ name: string; location: string }> => {
   return retryOperation(async () => {
+    const ai = getAI();
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: {
@@ -117,7 +128,8 @@ export const identifyLandmark = async (imageBase64: string): Promise<{ name: str
   });
 };
 
-export const generateTimelinePlan = async (landmarkName: string, location: string): Promise<TimelineEvent[]> => {
+export const generateTimelinePlan = async (landmarkName: string, location: string): Promise<{ timeline: TimelineEvent[], sources: { title: string; url: string }[] }> => {
+  const ai = getAI();
   const researchResponse = await retryOperation(async () => {
     return await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
@@ -129,7 +141,15 @@ export const generateTimelinePlan = async (landmarkName: string, location: strin
     });
   });
 
-  return retryOperation(async () => {
+  const groundingChunks = researchResponse.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
+  const sources = groundingChunks
+    .filter((chunk: any) => chunk.web)
+    .map((chunk: any) => ({
+      title: chunk.web.title || "Source",
+      url: chunk.web.uri || "#"
+    }));
+
+  const timelineEvents = await retryOperation(async () => {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: `Based on the following research, create a historical timeline for "${landmarkName}".
@@ -166,10 +186,13 @@ export const generateTimelinePlan = async (landmarkName: string, location: strin
       isPanoramic: true
     }));
   });
+
+  return { timeline: timelineEvents, sources };
 };
 
 export const generateTimelineFromResearch = async (topic: string, report: string): Promise<TimelineEvent[]> => {
   return retryOperation(async () => {
+    const ai = getAI();
     const prompt = `
       Based on this research report about "${topic}", create a 4-point historical timeline.
       Report: "${report.substring(0, 5000)}"
@@ -218,6 +241,7 @@ export const generateHistoricalImage = async (
   referenceImageBase64?: string
 ): Promise<string> => {
   return retryOperation(async () => {
+    const ai = getAI();
     const model = 'gemini-2.5-flash-image';
     let promptText = `Generate a photorealistic, ultra-high-definition, seamless equirectangular 360-degree panoramic view of ${landmarkName} in the year ${event.year}. ${event.visualPrompt}.`;
     
@@ -247,6 +271,7 @@ export const identifyHotspotsInScene = async (
   year: number
 ): Promise<SceneHotspot[]> => {
   return retryOperation(async () => {
+    const ai = getAI();
     const prompt = `
       Analyze this historical 360-degree panorama of ${landmarkName} in ${year}. 
       Identify 3-4 significant 'nearby' buildings, statues, or architectural features visible in the background or periphery.
@@ -294,6 +319,7 @@ export const identifyHotspotsInScene = async (
 
 export const generateResearchImage = async (prompt: string): Promise<string> => {
   return retryOperation(async () => {
+    const ai = getAI();
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
       contents: {
@@ -317,8 +343,8 @@ export const conductHistoricalResearch = async (audioBase64: string): Promise<{
   imagePrompts?: string[];
   sources?: { title: string; url: string }[];
 }> => {
+  const ai = getAI();
   // Step 1: Research (Grounded Search from Audio)
-  // We avoid JSON here as per the rules: grounded responses might not be JSON.
   const researchTextResponse = await retryOperation(async () => {
     return await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
@@ -393,6 +419,7 @@ export const validateRelevance = async (
   isAudio: boolean
 ): Promise<{ relevant: boolean; feedback: string }> => {
   return retryOperation(async () => {
+    const ai = getAI();
     const parts: any[] = [];
     
     const relevanceGuidance = `
@@ -435,12 +462,12 @@ export const validateRelevance = async (
 };
 
 export const generateNarration = async (landmarkName: string, timeline: TimelineEvent[]): Promise<string> => {
+  const ai = getAI();
   const scriptResponse = await retryOperation(async () => {
     const storyPrompt = `Write a short narration about ${landmarkName}'s evolution from ${timeline[0].year} to today. Plain text.`;
     return await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: storyPrompt,
-      // Fixed: thinkingBudget must be wrapped in thinkingConfig
       config: { thinkingConfig: { thinkingBudget: 0 } }
     });
   });

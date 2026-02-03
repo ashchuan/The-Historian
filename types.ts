@@ -45,6 +45,8 @@ export interface LandmarkData {
   audioNarrative?: string;
   isCustom: boolean;
   userNotes?: UserNote[];
+  sources?: { title: string; url: string }[];
+  fullReport?: ResearchPaper;
 }
 
 export interface LoadingState {

@@ -137,7 +137,7 @@ const UserNotesManager: React.FC<UserNotesManagerProps> = ({
           <div className="p-4 border-b border-white/5 flex justify-between items-center">
             <div className="flex items-center gap-2 text-amber-500">
               <StickyNote size={16} />
-              <span className="text-xs font-bold uppercase tracking-wider">Historical Log</span>
+              <span className="text-xs font-bold uppercase tracking-wider">Timeline Comments</span>
             </div>
             <button onClick={() => setIsOpen(false)}><X size={16} className="text-slate-400 hover:text-white" /></button>
           </div>
