@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Camera, MapPin, Loader2, ArrowLeft, Info, X, ZoomIn, ZoomOut, Maximize, RefreshCw, Globe, Save, Trash2, BookOpen, StickyNote, Mic, Download, FileText, CheckCircle2, ShieldCheck, ExternalLink, Settings, Link as LinkIcon } from 'lucide-react';
+import { Camera, MapPin, Loader2, ArrowLeft, Info, X, ZoomIn, ZoomOut, Maximize, RefreshCw, Globe, Save, Trash2, BookOpen, StickyNote, Mic, Download, FileText, CheckCircle2, ShieldCheck, ExternalLink, Settings, Link as LinkIcon, Sparkles } from 'lucide-react';
 import { LandmarkData, LoadingState, ViewMode, SceneHotspot, UserNote, ResearchPaper } from './types';
 import * as geminiService from './services/geminiService';
 import * as storageService from './services/storageService';
@@ -97,7 +97,6 @@ const App: React.FC = () => {
     setPresetStatus(status);
     setPregeneratedLandmarks(memoryCache);
 
-    // Parallel pre-generation trigger
     if (isSetupComplete) {
       triggerParallelSync(status);
     }
@@ -250,7 +249,7 @@ const App: React.FC = () => {
         isCustom: true, 
         userNotes: [], 
         sources: paper.sources,
-        fullReport: paper // Preserving research dossier
+        fullReport: paper 
       };
       setLandmarkData(newLandmark);
 
@@ -308,18 +307,13 @@ const App: React.FC = () => {
   };
 
   const handleDeleteSaved = async (id: string, e: React.MouseEvent) => {
-    // Immediate interception to prevent bubbling to card click
     e.preventDefault();
     e.stopPropagation();
-    
-    // Explicitly use window.confirm
     const confirmed = window.confirm("Are you sure you want to remove this landmark from your collection?");
     if (confirmed) {
       try {
         await storageService.deleteLandmark(id);
-        // Optimistic UI Update: Filter locally first
         setSavedLandmarks(prev => prev.filter(l => l.id !== id));
-        // Also clear memory cache
         setPregeneratedLandmarks(prev => {
           const next = { ...prev };
           delete next[id];
@@ -470,7 +464,6 @@ const App: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 {researchDiscoveryLandmarks.map(landmark => (
                   <div key={landmark.id} className="group relative h-80 rounded-2xl overflow-hidden shadow-2xl border border-white/5 transition-all hover:scale-[1.02]">
-                    {/* Visual Layer */}
                     <div className="absolute inset-0 w-full h-full">
                       <img 
                         src={landmark.originalImage ? `data:image/jpeg;base64,${landmark.originalImage}` : (landmark.timeline[landmark.timeline.length-1]?.imageUrl || SKY_BLUE_CANVAS)} 
@@ -483,7 +476,6 @@ const App: React.FC = () => {
                       </div>
                     </div>
                     
-                    {/* Trigger Layer (Primary Interaction) */}
                     <button 
                       onClick={() => {
                         setLandmarkData(landmark);
@@ -493,7 +485,6 @@ const App: React.FC = () => {
                       className="absolute inset-0 z-10 w-full h-full cursor-pointer text-left bg-transparent border-none appearance-none"
                     />
                     
-                    {/* Action Button Layer (Higher Priority) */}
                     <button 
                       type="button"
                       onClick={(e) => handleDeleteSaved(landmark.id, e)}
@@ -597,7 +588,6 @@ const App: React.FC = () => {
             <button onClick={handleRegenerate} className="flex items-center justify-center w-12 h-12 rounded-full bg-slate-900/80 border border-white/10 text-amber-500 hover:bg-amber-500 hover:text-slate-900 transition-all"><RefreshCw size={20} /></button>
             {landmarkData.audioNarrative && <AudioPlayer audioBase64={landmarkData.audioNarrative} />}
             
-            {/* Restored PDF Download Button */}
             {landmarkData.fullReport && (
               <button 
                 onClick={() => generatePDF(landmarkData.fullReport!)} 
@@ -653,7 +643,6 @@ const App: React.FC = () => {
                   <h3 className="text-4xl font-serif text-white mb-8 leading-tight">{currentEvent.title}</h3>
                   <div className="space-y-6 text-slate-300 text-lg font-light mb-12">{currentEvent.description.split('\n').map((para, i) => <p key={i}>{para}</p>)}</div>
                   
-                  {/* Restored Hotspot Section */}
                   {currentEvent.hotspots && currentEvent.hotspots.length > 0 && (
                     <div className="mt-12 pt-8 border-t border-white/5">
                        <h4 className="text-xs font-bold uppercase tracking-[0.2em] text-amber-500 mb-6 flex items-center gap-2"><MapPin size={14} /> Local Reconnaissance</h4>
