@@ -298,38 +298,28 @@ const App: React.FC = () => {
     });
   };
 
-  const handleToggleSave = async () => {
+  const handleSaveToCollection = async () => {
     if (!landmarkData) return;
     setIsSaving(true);
-    
-    const isSaved = savedLandmarks.some(l => l.id === landmarkData.id);
-    
-    if (isSaved) {
-      const confirmed = window.confirm("Remove this landmark from your collection?");
-      if (confirmed) {
-        await storageService.deleteLandmark(landmarkData.id);
-      } else {
-        setIsSaving(false);
-        return;
-      }
-    } else {
-      await storageService.saveLandmark(landmarkData);
-    }
-    
+    await storageService.saveLandmark(landmarkData);
     const all = await storageService.getAllLandmarks();
     setSavedLandmarks(all);
     setIsSaving(false);
   };
 
   const handleDeleteSaved = async (id: string, e: React.MouseEvent) => {
+    // Immediate interception to prevent bubbling to card click
     e.preventDefault();
     e.stopPropagation();
     
+    // Explicitly use window.confirm
     const confirmed = window.confirm("Are you sure you want to remove this landmark from your collection?");
     if (confirmed) {
       try {
         await storageService.deleteLandmark(id);
+        // Optimistic UI Update: Filter locally first
         setSavedLandmarks(prev => prev.filter(l => l.id !== id));
+        // Also clear memory cache
         setPregeneratedLandmarks(prev => {
           const next = { ...prev };
           delete next[id];
@@ -456,8 +446,23 @@ const App: React.FC = () => {
         <div className="relative z-10 max-w-5xl w-full text-center">
           <header className="mb-16">
             <h1 className="text-5xl md:text-8xl font-serif text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-amber-400 to-amber-200 mb-6 drop-shadow-lg py-2">The Historian</h1>
-            <p className="text-xl md:text-2xl text-slate-300 mb-4 font-light max-w-2xl mx-auto">Witness the evolution of humanity's greatest achievements.</p>
+            <p className="text-xl md:text-2xl text-slate-300 mb-4 font-light max-w-2xl mx-auto">Step through the veil of time. Identify landmarks or conduct deep research to manifest immersive historical panoramas.</p>
           </header>
+
+          {/* Primary Action Cards Moved to Top */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-20 animate-in fade-in slide-in-from-top-4 duration-700">
+            <section className="bg-slate-800/40 backdrop-blur-xl p-10 rounded-3xl border border-white/5 hover:bg-slate-800/60 transition-all cursor-pointer group relative overflow-hidden shadow-2xl h-full flex flex-col justify-center">
+              <input type="file" accept="image/*" onChange={handleFileUpload} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20" />
+              <div className="flex flex-col items-center gap-6 text-slate-300 group-hover:text-amber-400 transition-colors">
+                <div className="p-6 bg-slate-700/50 rounded-full group-hover:bg-slate-600/50 transition-all group-hover:scale-110 shadow-inner"><Camera size={56} className="text-amber-500" /></div>
+                <div className="text-center">
+                  <h3 className="text-2xl font-bold mb-2 font-serif">Identify & Explore</h3>
+                  <p className="text-slate-400 font-light text-sm">Upload a photo to travel through its specific history</p>
+                </div>
+              </div>
+            </section>
+            <HistorianAgent papers={researchPapers} onRefresh={loadResearchPapers} onLaunchJourney={paper => handleLaunchJourneyFromPaper(paper)} />
+          </div>
 
           {researchDiscoveryLandmarks.length > 0 && (
             <div className="text-left mb-20 animate-in fade-in slide-in-from-bottom-4 duration-1000">
@@ -465,6 +470,7 @@ const App: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 {researchDiscoveryLandmarks.map(landmark => (
                   <div key={landmark.id} className="group relative h-80 rounded-2xl overflow-hidden shadow-2xl border border-white/5 transition-all hover:scale-[1.02]">
+                    {/* Visual Layer */}
                     <div className="absolute inset-0 w-full h-full">
                       <img 
                         src={landmark.originalImage ? `data:image/jpeg;base64,${landmark.originalImage}` : (landmark.timeline[landmark.timeline.length-1]?.imageUrl || SKY_BLUE_CANVAS)} 
@@ -477,6 +483,7 @@ const App: React.FC = () => {
                       </div>
                     </div>
                     
+                    {/* Trigger Layer (Primary Interaction) */}
                     <button 
                       onClick={() => {
                         setLandmarkData(landmark);
@@ -486,6 +493,7 @@ const App: React.FC = () => {
                       className="absolute inset-0 z-10 w-full h-full cursor-pointer text-left bg-transparent border-none appearance-none"
                     />
                     
+                    {/* Action Button Layer (Higher Priority) */}
                     <button 
                       type="button"
                       onClick={(e) => handleDeleteSaved(landmark.id, e)}
@@ -542,20 +550,6 @@ const App: React.FC = () => {
               })}
             </div>
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-20">
-            <section className="bg-slate-800/40 backdrop-blur-xl p-10 rounded-3xl border border-white/5 hover:bg-slate-800/60 transition-all cursor-pointer group relative overflow-hidden shadow-2xl h-full flex flex-col justify-center">
-              <input type="file" accept="image/*" onChange={handleFileUpload} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20" />
-              <div className="flex flex-col items-center gap-6 text-slate-300 group-hover:text-amber-400 transition-colors">
-                <div className="p-6 bg-slate-700/50 rounded-full group-hover:bg-slate-600/50 transition-all group-hover:scale-110 shadow-inner"><Camera size={56} className="text-amber-500" /></div>
-                <div className="text-center">
-                  <h3 className="text-2xl font-bold mb-2 font-serif">Identify & Explore</h3>
-                  <p className="text-slate-400 font-light text-sm">Upload a photo to travel through its specific history</p>
-                </div>
-              </div>
-            </section>
-            <HistorianAgent papers={researchPapers} onRefresh={loadResearchPapers} onLaunchJourney={paper => handleLaunchJourneyFromPaper(paper)} />
-          </div>
         </div>
       </div>
     );
@@ -595,28 +589,15 @@ const App: React.FC = () => {
           </div>
           <div className="pointer-events-auto flex items-center gap-3">
             {landmarkData.isCustom && (
-              <button 
-                onClick={handleToggleSave} 
-                disabled={isSaving} 
-                className={`flex items-center gap-2 px-6 py-3 rounded-full font-bold transition-all shadow-xl border group/save ${isSavedInCollection ? 'bg-green-600/20 border-green-500/50 text-green-400 hover:bg-red-600/20 hover:border-red-500/50 hover:text-red-400' : 'bg-amber-500 border-amber-500 text-slate-950 hover:bg-amber-400'}`}
-                title={isSavedInCollection ? "Remove from Collection" : "Save Collection"}
-              >
-                {isSaving ? <Loader2 size={18} className="animate-spin" /> : isSavedInCollection ? (
-                  <>
-                    <Globe size={18} className="group-hover/save:hidden" />
-                    <Trash2 size={18} className="hidden group-hover/save:block" />
-                  </>
-                ) : <Save size={18} />}
-                <span className="uppercase tracking-widest text-xs">
-                  {isSavedInCollection ? (
-                    <><span className="group-hover/save:hidden">Saved</span><span className="hidden group-hover/save:inline">Remove</span></>
-                  ) : 'Save Collection'}
-                </span>
+              <button onClick={handleSaveToCollection} disabled={isSaving || isSavedInCollection} className={`flex items-center gap-2 px-6 py-3 rounded-full font-bold transition-all shadow-xl border ${isSavedInCollection ? 'bg-green-600/20 border-green-500/50 text-green-400' : 'bg-amber-500 border-amber-500 text-slate-950 hover:bg-amber-400'}`}>
+                {isSaving ? <Loader2 size={18} className="animate-spin" /> : isSavedInCollection ? <Globe size={18} /> : <Save size={18} />}
+                <span className="uppercase tracking-widest text-xs">{isSavedInCollection ? 'Saved' : 'Save Collection'}</span>
               </button>
             )}
             <button onClick={handleRegenerate} className="flex items-center justify-center w-12 h-12 rounded-full bg-slate-900/80 border border-white/10 text-amber-500 hover:bg-amber-500 hover:text-slate-900 transition-all"><RefreshCw size={20} /></button>
             {landmarkData.audioNarrative && <AudioPlayer audioBase64={landmarkData.audioNarrative} />}
             
+            {/* Restored PDF Download Button */}
             {landmarkData.fullReport && (
               <button 
                 onClick={() => generatePDF(landmarkData.fullReport!)} 
@@ -672,6 +653,7 @@ const App: React.FC = () => {
                   <h3 className="text-4xl font-serif text-white mb-8 leading-tight">{currentEvent.title}</h3>
                   <div className="space-y-6 text-slate-300 text-lg font-light mb-12">{currentEvent.description.split('\n').map((para, i) => <p key={i}>{para}</p>)}</div>
                   
+                  {/* Restored Hotspot Section */}
                   {currentEvent.hotspots && currentEvent.hotspots.length > 0 && (
                     <div className="mt-12 pt-8 border-t border-white/5">
                        <h4 className="text-xs font-bold uppercase tracking-[0.2em] text-amber-500 mb-6 flex items-center gap-2"><MapPin size={14} /> Local Reconnaissance</h4>
