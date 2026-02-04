@@ -265,6 +265,33 @@ export const generateHistoricalImage = async (
   });
 };
 
+export const generateStickerSheet = async (landmarkName: string): Promise<string> => {
+  return retryOperation(async () => {
+    const ai = getAI();
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-pro-image-preview',
+      contents: {
+        parts: [
+          {
+            text: `Generate a sheet of 6 fun, colorful, and distinct stickers of the ${landmarkName}. Each sticker should have a bold white border and be in a whimsical, cartoonish style. Arrange them in a 2x3 grid on a clean, solid background.`,
+          },
+        ],
+      },
+      config: {
+        imageConfig: {
+          aspectRatio: "1:1",
+          imageSize: "1K"
+        }
+      },
+    });
+
+    for (const part of response.candidates?.[0]?.content?.parts || []) {
+      if (part.inlineData) return part.inlineData.data;
+    }
+    throw new Error("No stickers generated");
+  });
+};
+
 export const identifyHotspotsInScene = async (
   imageBase64: string,
   landmarkName: string,

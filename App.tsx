@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Camera, MapPin, Loader2, ArrowLeft, Info, X, ZoomIn, ZoomOut, Maximize, RefreshCw, Globe, Save, Trash2, BookOpen, StickyNote, Mic, Download, FileText, CheckCircle2, ShieldCheck, ExternalLink, Settings, Link as LinkIcon, Sparkles } from 'lucide-react';
+import { Camera, MapPin, Loader2, ArrowLeft, Info, X, ZoomIn, ZoomOut, Maximize, RefreshCw, Globe, Save, Trash2, BookOpen, StickyNote, Mic, Download, FileText, CheckCircle2, ShieldCheck, ExternalLink, Settings, Link as LinkIcon, Sparkles, Printer, Image as ImageIcon } from 'lucide-react';
 import { LandmarkData, LoadingState, ViewMode, SceneHotspot, UserNote, ResearchPaper } from './types';
 import * as geminiService from './services/geminiService';
 import * as storageService from './services/storageService';
@@ -33,6 +33,11 @@ const App: React.FC = () => {
   const [isInfoVisible, setIsInfoVisible] = useState(false);
   const [isPanoramicMode, setIsPanoramicMode] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+
+  // Sticker State
+  const [stickerSheetUrl, setStickerSheetUrl] = useState<string | null>(null);
+  const [isGeneratingStickers, setIsGeneratingStickers] = useState(false);
+  const [stickerTargetName, setStickerTargetName] = useState<string | null>(null);
 
   // Pre-generation status tracking
   const [presetStatus, setPresetStatus] = useState<Record<string, 'ready' | 'loading' | 'idle'>>({});
@@ -69,11 +74,11 @@ const App: React.FC = () => {
   };
 
   useEffect(() => {
-    document.body.style.overflow = viewMode === ViewMode.EXPERIENCE ? 'hidden' : 'auto';
+    document.body.style.overflow = (viewMode === ViewMode.EXPERIENCE || stickerSheetUrl) ? 'hidden' : 'auto';
     if (viewMode === ViewMode.HOME && isSetupComplete) {
       loadInitialData();
     }
-  }, [viewMode, isSetupComplete]);
+  }, [viewMode, isSetupComplete, stickerSheetUrl]);
 
   const loadInitialData = async () => {
     const all = await storageService.getAllLandmarks();
@@ -129,6 +134,51 @@ const App: React.FC = () => {
       setPresetStatus(prev => ({ ...prev, [preset.id]: 'ready' }));
     } catch (error: any) {
       setPresetStatus(prev => ({ ...prev, [preset.id]: 'idle' }));
+    }
+  };
+
+  const handleGenerateStickers = async (name: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsGeneratingStickers(true);
+    setStickerTargetName(name);
+    try {
+      const base64 = await geminiService.generateStickerSheet(name);
+      setStickerSheetUrl(`data:image/png;base64,${base64}`);
+    } catch (error: any) {
+      console.error("Sticker generation failed", error);
+      if (error?.message?.includes("Requested entity was not found")) {
+        handleOpenKeySelection();
+      } else {
+        alert("Failed to manifest stickers. Please ensure your API key is correctly configured.");
+      }
+    } finally {
+      setIsGeneratingStickers(false);
+    }
+  };
+
+  const handlePrintStickers = () => {
+    if (!stickerSheetUrl) return;
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(`
+        <html>
+          <head>
+            <title>Sticker Sheet - ${stickerTargetName}</title>
+            <style>
+              body { margin: 0; display: flex; align-items: center; justify-content: center; height: 100vh; background: white; }
+              img { max-width: 100%; height: auto; display: block; }
+              @media print {
+                body { background: none; }
+                img { width: 100%; height: auto; }
+              }
+            </style>
+          </head>
+          <body>
+            <img src="${stickerSheetUrl}" onload="window.print();window.close();" />
+          </body>
+        </html>
+      `);
+      printWindow.document.close();
     }
   };
 
@@ -443,7 +493,6 @@ const App: React.FC = () => {
             <p className="text-xl md:text-2xl text-slate-300 mb-4 font-light max-w-2xl mx-auto">Step through the veil of time. Identify landmarks or conduct deep research to manifest immersive historical panoramas.</p>
           </header>
 
-          {/* Primary Action Cards Moved to Top */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-20 animate-in fade-in slide-in-from-top-4 duration-700">
             <section className="bg-slate-800/40 backdrop-blur-xl p-10 rounded-3xl border border-white/5 hover:bg-slate-800/60 transition-all cursor-pointer group relative overflow-hidden shadow-2xl h-full flex flex-col justify-center">
               <input type="file" accept="image/*" onChange={handleFileUpload} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20" />
@@ -485,14 +534,23 @@ const App: React.FC = () => {
                       className="absolute inset-0 z-10 w-full h-full cursor-pointer text-left bg-transparent border-none appearance-none"
                     />
                     
-                    <button 
-                      type="button"
-                      onClick={(e) => handleDeleteSaved(landmark.id, e)}
-                      className="absolute top-4 right-4 z-50 p-3 bg-red-600/90 hover:bg-red-500 text-white rounded-full shadow-2xl opacity-0 group-hover:opacity-100 transition-all active:scale-95 flex items-center justify-center transform-gpu pointer-events-auto"
-                      title="Remove from Collection"
-                    >
-                      <Trash2 size={20} />
-                    </button>
+                    <div className="absolute top-4 right-4 z-20 flex gap-2 opacity-0 group-hover:opacity-100 transition-all">
+                      <button 
+                        onClick={(e) => handleGenerateStickers(landmark.name, e)}
+                        className="p-3 bg-amber-500 backdrop-blur-md rounded-full text-slate-900 shadow-lg active:scale-95 hover:bg-amber-400"
+                        title="Print Stickers"
+                      >
+                        <Printer size={18} />
+                      </button>
+                      <button 
+                        type="button"
+                        onClick={(e) => handleDeleteSaved(landmark.id, e)}
+                        className="p-3 bg-red-600/90 hover:bg-red-500 text-white rounded-full shadow-2xl active:scale-95"
+                        title="Remove from Collection"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -528,14 +586,23 @@ const App: React.FC = () => {
                         </div>
                       </div>
                     </button>
-                    <button 
-                      onClick={(e) => handleRefreshPreset(preset, e)} 
-                      className="absolute top-4 right-4 z-20 p-3 bg-slate-900/60 hover:bg-amber-500 backdrop-blur-md rounded-full text-white/70 hover:text-slate-950 shadow-lg active:scale-95 opacity-0 group-hover:opacity-100 transition-all" 
-                      title="Regenerate Journey" 
-                      disabled={status === 'loading'}
-                    >
-                      <RefreshCw size={16} className={status === 'loading' ? 'animate-spin' : ''} />
-                    </button>
+                    <div className="absolute top-4 right-4 z-20 flex gap-2 opacity-0 group-hover:opacity-100 transition-all">
+                      <button 
+                        onClick={(e) => handleGenerateStickers(preset.name, e)}
+                        className="p-3 bg-amber-500 backdrop-blur-md rounded-full text-slate-900 shadow-lg active:scale-95 hover:bg-amber-400"
+                        title="Print Stickers"
+                      >
+                        <Printer size={16} />
+                      </button>
+                      <button 
+                        onClick={(e) => handleRefreshPreset(preset, e)} 
+                        className="p-3 bg-slate-900/60 hover:bg-amber-500 backdrop-blur-md rounded-full text-white/70 hover:text-slate-950 shadow-lg active:scale-95 transition-all" 
+                        title="Regenerate Journey" 
+                        disabled={status === 'loading'}
+                      >
+                        <RefreshCw size={16} className={status === 'loading' ? 'animate-spin' : ''} />
+                      </button>
+                    </div>
                   </div>
                 );
               })}
@@ -677,7 +744,69 @@ const App: React.FC = () => {
   };
 
   if (!isSetupComplete) return renderSetup();
-  return viewMode === ViewMode.HOME ? renderHome() : renderExperience();
+  return (
+    <>
+      {viewMode === ViewMode.HOME ? renderHome() : renderExperience()}
+
+      {/* Global Sticker Modal */}
+      {(isGeneratingStickers || stickerSheetUrl) && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-950/90 backdrop-blur-xl p-4 md:p-12">
+          <div className="relative max-w-4xl w-full bg-slate-900 border border-white/10 rounded-[40px] overflow-hidden shadow-2xl flex flex-col md:flex-row animate-in zoom-in-95 duration-500">
+            {/* Visual Section */}
+            <div className="flex-1 bg-black p-8 flex items-center justify-center relative min-h-[400px]">
+              {isGeneratingStickers ? (
+                <div className="flex flex-col items-center gap-6 text-amber-500 animate-pulse">
+                  <Loader2 size={64} className="animate-spin" />
+                  <p className="font-serif uppercase tracking-widest text-lg">Manifesting Fun Stickers...</p>
+                </div>
+              ) : (
+                <img src={stickerSheetUrl!} alt="Stickers" className="max-w-full max-h-full rounded-2xl shadow-[0_0_50px_rgba(251,191,36,0.2)]" />
+              )}
+            </div>
+
+            {/* Controls Section */}
+            <div className="w-full md:w-80 p-10 flex flex-col justify-between bg-slate-900/50">
+              <div className="space-y-6">
+                <div className="flex justify-between items-start">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 text-amber-500 text-[10px] font-bold uppercase tracking-widest">
+                      <ImageIcon size={14} /> Fun Artifacts
+                    </div>
+                    <h3 className="text-3xl font-serif text-white">{stickerTargetName}</h3>
+                  </div>
+                  {!isGeneratingStickers && (
+                    <button onClick={() => setStickerSheetUrl(null)} className="p-2 hover:bg-white/5 rounded-full text-slate-400 hover:text-white transition-colors">
+                      <X size={24} />
+                    </button>
+                  )}
+                </div>
+                <p className="text-slate-400 text-sm font-light leading-relaxed">
+                  We've manifest a unique sheet of 6 fun stickers for this landmark. Perfect for digital scrapbooks or physical printing.
+                </p>
+              </div>
+
+              <div className="space-y-4 pt-8 border-t border-white/5">
+                <button 
+                  disabled={isGeneratingStickers}
+                  onClick={handlePrintStickers}
+                  className="w-full py-4 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold uppercase tracking-widest text-xs rounded-2xl transition-all shadow-xl flex items-center justify-center gap-3 active:scale-95 disabled:opacity-50"
+                >
+                  <Printer size={18} />
+                  Send to Printer
+                </button>
+                <button 
+                  onClick={() => setStickerSheetUrl(null)}
+                  className="w-full py-4 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold uppercase tracking-widest text-xs rounded-2xl transition-all"
+                >
+                  Close Archive
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
 };
 
 export default App;
