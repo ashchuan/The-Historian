@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Camera, MapPin, Loader2, ArrowLeft, Info, X, ZoomIn, ZoomOut, Maximize, RefreshCw, Globe, Save, Trash2, BookOpen, StickyNote, Mic, Download, FileText, CheckCircle2, ShieldCheck, ExternalLink, Settings, Link as LinkIcon, Sparkles, Printer, Image as ImageIcon } from 'lucide-react';
+import { Camera, MapPin, Loader2, ArrowLeft, Info, X, ZoomIn, ZoomOut, Maximize, RefreshCw, Globe, Save, Trash2, BookOpen, StickyNote, Mic, Download, FileText, CheckCircle2, ShieldCheck, ExternalLink, Settings, Link as LinkIcon, Sparkles, Printer, Image as ImageIcon, Menu } from 'lucide-react';
 import { LandmarkData, LoadingState, ViewMode, SceneHotspot, UserNote, ResearchPaper } from './types';
 import * as geminiService from './services/geminiService';
 import * as storageService from './services/storageService';
@@ -33,6 +33,8 @@ const App: React.FC = () => {
   const [isInfoVisible, setIsInfoVisible] = useState(false);
   const [isPanoramicMode, setIsPanoramicMode] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isAboutVisible, setIsAboutVisible] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   // Sticker State
   const [stickerSheetUrl, setStickerSheetUrl] = useState<string | null>(null);
@@ -74,11 +76,11 @@ const App: React.FC = () => {
   };
 
   useEffect(() => {
-    document.body.style.overflow = (viewMode === ViewMode.EXPERIENCE || stickerSheetUrl) ? 'hidden' : 'auto';
+    document.body.style.overflow = (viewMode === ViewMode.EXPERIENCE || stickerSheetUrl || isAboutVisible) ? 'hidden' : 'auto';
     if (viewMode === ViewMode.HOME && isSetupComplete) {
       loadInitialData();
     }
-  }, [viewMode, isSetupComplete, stickerSheetUrl]);
+  }, [viewMode, isSetupComplete, stickerSheetUrl, isAboutVisible]);
 
   const loadInitialData = async () => {
     const all = await storageService.getAllLandmarks();
@@ -419,6 +421,7 @@ const App: React.FC = () => {
     setIsInfoVisible(false);
     setIsPanoramicMode(false);
     setTransform({ scale: 1, x: 0, y: 0, rx: 0, ry: 0, rz: 0 });
+    setIsMenuOpen(false);
   };
 
   const handleWheel = (e: React.WheelEvent) => {
@@ -746,6 +749,45 @@ const App: React.FC = () => {
   if (!isSetupComplete) return renderSetup();
   return (
     <>
+      {/* Global Top-Right Menu Button */}
+      <div className="fixed top-6 right-6 z-[200] flex flex-col items-end gap-3">
+        <button 
+          onClick={() => setIsMenuOpen(!isMenuOpen)}
+          className={`p-3 bg-slate-900/80 backdrop-blur-xl border border-white/10 rounded-xl text-amber-500 hover:bg-amber-500 hover:text-slate-900 transition-all shadow-xl active:scale-95 flex items-center justify-center`}
+          aria-label="Open Menu"
+        >
+          {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
+        </button>
+        
+        {isMenuOpen && (
+          <div className="w-64 bg-slate-950/90 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden animate-in slide-in-from-top-4 duration-300 pointer-events-auto">
+            <div className="p-3 border-b border-white/5">
+              <span className="text-[10px] font-bold uppercase tracking-[0.3em] text-slate-500 px-3">Archive Management</span>
+            </div>
+            <button 
+              onClick={() => { setIsAboutVisible(true); setIsMenuOpen(false); }}
+              className="w-full flex items-center gap-3 px-6 py-4 text-left text-sm text-slate-300 hover:bg-amber-500 hover:text-slate-950 transition-all group"
+            >
+              <Info size={18} className="text-amber-500 group-hover:text-slate-950 transition-colors" />
+              <div className="flex flex-col">
+                <span className="font-bold">About the Project</span>
+                <span className="text-[10px] opacity-70">The Vision of the Historian</span>
+              </div>
+            </button>
+            <button 
+              onClick={() => { reset(); setIsMenuOpen(false); }}
+              className="w-full flex items-center gap-3 px-6 py-4 text-left text-sm text-slate-300 hover:bg-slate-800 transition-all group"
+            >
+              <Globe size={18} className="text-slate-500 group-hover:text-amber-400" />
+              <div className="flex flex-col">
+                <span className="font-bold">Return to Dashboard</span>
+                <span className="text-[10px] opacity-70">Exit current session</span>
+              </div>
+            </button>
+          </div>
+        )}
+      </div>
+
       {viewMode === ViewMode.HOME ? renderHome() : renderExperience()}
 
       {/* Global Sticker Modal */}
@@ -799,6 +841,79 @@ const App: React.FC = () => {
                   className="w-full py-4 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold uppercase tracking-widest text-xs rounded-2xl transition-all"
                 >
                   Close Archive
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* About the Project Modal */}
+      {isAboutVisible && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center bg-slate-950/95 backdrop-blur-xl p-4 md:p-12 overflow-y-auto">
+          <div className="relative max-w-4xl w-full bg-slate-900/50 border border-amber-500/20 rounded-[40px] p-10 md:p-20 shadow-[0_0_100px_rgba(0,0,0,0.5)] animate-in zoom-in-95 duration-500 text-slate-200">
+            <button 
+              onClick={() => setIsAboutVisible(false)}
+              className="absolute top-8 right-8 p-3 bg-slate-800/80 hover:bg-amber-500 rounded-full text-slate-400 hover:text-slate-950 transition-all active:scale-95 shadow-lg border border-white/5"
+            >
+              <X size={24} />
+            </button>
+            
+            <div className="space-y-12 max-w-2xl mx-auto">
+              <header className="text-center space-y-4">
+                <div className="inline-block px-4 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-500 text-[10px] font-bold uppercase tracking-[0.4em] mb-4">
+                  Project Dossier
+                </div>
+                <h2 className="text-5xl md:text-6xl font-serif text-amber-100">The Historian</h2>
+                <div className="h-1 w-24 bg-amber-500 mx-auto rounded-full"></div>
+              </header>
+
+              <div className="space-y-8 leading-relaxed font-light">
+                <p className="text-xl">
+                  <span className="font-bold text-amber-200">The Historian</span> redefines history education through immersive technology. The app allows anyone to learn, experience and enjoy history of landmarks by blending panoramic views with chronological storytelling.
+                </p>
+                
+                <p className="text-lg opacity-80">
+                  The idea is to appeal to an audience of all ages using data already available online, and by augmenting the data using Generative Artificial Intelligence multi-modal capabilities, we aim to provide the following:
+                </p>
+                
+                <ul className="space-y-8 text-lg">
+                  <li className="flex gap-6 group">
+                    <div className="shrink-0 w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500 group-hover:bg-amber-500 group-hover:text-slate-950 transition-all">
+                      <Globe size={24} />
+                    </div>
+                    <div className="space-y-2">
+                      <span className="font-bold text-amber-100 block font-serif tracking-wider uppercase text-sm">Immersive Exploration</span>
+                      <p className="opacity-70 text-sm">Navigate through various historical eras using AI-driven audio and visual reconstructions.</p>
+                    </div>
+                  </li>
+                  <li className="flex gap-6 group">
+                    <div className="shrink-0 w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500 group-hover:bg-amber-500 group-hover:text-slate-950 transition-all">
+                      <ShieldCheck size={24} />
+                    </div>
+                    <div className="space-y-2">
+                      <span className="font-bold text-amber-100 block font-serif tracking-wider uppercase text-sm">User-Centric Research</span>
+                      <p className="opacity-70 text-sm">Upload a photo or use the Scholar-Historian agent to research and generate a custom immersive timeline and a downloadable research dossier in PDF format.</p>
+                    </div>
+                  </li>
+                  <li className="flex gap-6 group">
+                    <div className="shrink-0 w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500 group-hover:bg-amber-500 group-hover:text-slate-950 transition-all">
+                      <Sparkles size={24} />
+                    </div>
+                    <div className="space-y-2">
+                      <span className="font-bold text-amber-100 block font-serif tracking-wider uppercase text-sm">Creative Engagement</span>
+                      <p className="opacity-70 text-sm">Users can leave audio or text timeline comments and for younger learners, the app rewards exploration with unique, stylized stickers available for digital use or printing.</p>
+                    </div>
+                  </li>
+                </ul>
+              </div>
+              
+              <div className="pt-12 border-t border-white/5 text-center">
+                <button 
+                  onClick={() => setIsAboutVisible(false)}
+                  className="px-12 py-4 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold uppercase tracking-[0.3em] text-[10px] rounded-2xl transition-all shadow-xl active:scale-[0.98]"
+                >
+                  Return to Origin
                 </button>
               </div>
             </div>
