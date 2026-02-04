@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Camera, MapPin, Loader2, ArrowLeft, Info, X, ZoomIn, ZoomOut, Maximize, RefreshCw, Globe, Save, Trash2, BookOpen, StickyNote, Mic, Download, FileText, CheckCircle2, ShieldCheck, ExternalLink, Settings, Link as LinkIcon, Sparkles, Printer, Image as ImageIcon, Menu } from 'lucide-react';
+import { Camera, MapPin, Loader2, ArrowLeft, Info, X, ZoomIn, ZoomOut, Maximize, RefreshCw, Globe, Save, Trash2, BookOpen, StickyNote, Mic, Download, FileText, CheckCircle2, ShieldCheck, ExternalLink, Settings, Link as LinkIcon, Sparkles, Printer, Image as ImageIcon, Menu, Upload, FileJson } from 'lucide-react';
 import { LandmarkData, LoadingState, ViewMode, SceneHotspot, UserNote, ResearchPaper } from './types';
 import * as geminiService from './services/geminiService';
 import * as storageService from './services/storageService';
@@ -50,6 +51,7 @@ const App: React.FC = () => {
   const [isDragging, setIsDragging] = useState(false);
   const lastMousePos = useRef({ x: 0, y: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
+  const importFileRef = useRef<HTMLInputElement>(null);
 
   const currentEventIndex = Math.round(currentProgress);
 
@@ -137,6 +139,63 @@ const App: React.FC = () => {
     } catch (error: any) {
       setPresetStatus(prev => ({ ...prev, [preset.id]: 'idle' }));
     }
+  };
+
+  // Archive Export/Import Logic
+  const handleExportArchive = async () => {
+    try {
+      const landmarks = await storageService.getAllLandmarks();
+      const papers = await storageService.getAllResearchPapers();
+      const archiveData = {
+        version: "1.0",
+        timestamp: Date.now(),
+        landmarks,
+        papers
+      };
+      
+      const blob = new Blob([JSON.stringify(archiveData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `TheHistorian_Archive_${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      setIsMenuOpen(false);
+    } catch (err) {
+      console.error("Export failed", err);
+      alert("Failed to Manifest Export Blob. Check console for details.");
+    }
+  };
+
+  const handleImportArchive = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const json = JSON.parse(event.target?.result as string);
+        if (!json.landmarks && !json.papers) {
+          throw new Error("Malformed Archive: No historical data found.");
+        }
+
+        if (json.landmarks) {
+          for (const l of json.landmarks) await storageService.saveLandmark(l);
+        }
+        if (json.papers) {
+          for (const p of json.papers) await storageService.saveResearchPaper(p);
+        }
+
+        alert("Discovery Archive Successfully Integrated. Temporal stream updated.");
+        loadInitialData();
+        setIsMenuOpen(false);
+      } catch (err: any) {
+        alert("Integrity Check Failed: " + err.message);
+      } finally {
+        if (importFileRef.current) importFileRef.current.value = "";
+      }
+    };
+    reader.readAsText(file);
   };
 
   const handleGenerateStickers = async (name: string, e: React.MouseEvent) => {
@@ -749,6 +808,15 @@ const App: React.FC = () => {
   if (!isSetupComplete) return renderSetup();
   return (
     <>
+      {/* Hidden Import Archival File Input */}
+      <input 
+        type="file" 
+        ref={importFileRef} 
+        onChange={handleImportArchive} 
+        accept=".json" 
+        className="hidden" 
+      />
+
       {/* Global Top-Right Menu Button */}
       <div className="fixed top-6 right-6 z-[200] flex flex-col items-end gap-3">
         <button 
@@ -764,24 +832,48 @@ const App: React.FC = () => {
             <div className="p-3 border-b border-white/5">
               <span className="text-[10px] font-bold uppercase tracking-[0.3em] text-slate-500 px-3">Archive Management</span>
             </div>
+            
             <button 
               onClick={() => { setIsAboutVisible(true); setIsMenuOpen(false); }}
               className="w-full flex items-center gap-3 px-6 py-4 text-left text-sm text-slate-300 hover:bg-amber-500 hover:text-slate-950 transition-all group"
             >
               <Info size={18} className="text-amber-500 group-hover:text-slate-950 transition-colors" />
               <div className="flex flex-col">
-                <span className="font-bold">About the Project</span>
-                <span className="text-[10px] opacity-70">The Vision of the Historian</span>
+                <span className="font-bold">About Project</span>
+                <span className="text-[10px] opacity-70">The Historian Vision</span>
               </div>
             </button>
+
+            <button 
+              onClick={handleExportArchive}
+              className="w-full flex items-center gap-3 px-6 py-4 text-left text-sm text-slate-300 hover:bg-amber-500 hover:text-slate-950 transition-all group"
+            >
+              <Download size={18} className="text-amber-500 group-hover:text-slate-950 transition-colors" />
+              <div className="flex flex-col">
+                <span className="font-bold">Export Archive</span>
+                <span className="text-[10px] opacity-70">Backup your discoveries</span>
+              </div>
+            </button>
+
+            <button 
+              onClick={() => { importFileRef.current?.click(); }}
+              className="w-full flex items-center gap-3 px-6 py-4 text-left text-sm text-slate-300 hover:bg-amber-500 hover:text-slate-950 transition-all group"
+            >
+              <Upload size={18} className="text-amber-500 group-hover:text-slate-950 transition-colors" />
+              <div className="flex flex-col">
+                <span className="font-bold">Import Archive</span>
+                <span className="text-[10px] opacity-70">Restore JSON backup</span>
+              </div>
+            </button>
+
             <button 
               onClick={() => { reset(); setIsMenuOpen(false); }}
-              className="w-full flex items-center gap-3 px-6 py-4 text-left text-sm text-slate-300 hover:bg-slate-800 transition-all group"
+              className="w-full flex items-center gap-3 px-6 py-4 text-left text-sm text-slate-300 hover:bg-slate-800 transition-all group border-t border-white/5"
             >
               <Globe size={18} className="text-slate-500 group-hover:text-amber-400" />
               <div className="flex flex-col">
-                <span className="font-bold">Return to Dashboard</span>
-                <span className="text-[10px] opacity-70">Exit current session</span>
+                <span className="font-bold">Dashboard</span>
+                <span className="text-[10px] opacity-70">Exit session</span>
               </div>
             </button>
           </div>
