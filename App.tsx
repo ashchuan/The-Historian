@@ -15,10 +15,10 @@ const SKY_BLUE_CANVAS = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000
 
 const PRESETS = [
   { id: 'eiffel', name: 'Eiffel Tower', location: 'Paris, France', image: 'https://images.unsplash.com/photo-1511739001486-6bfe10ce785f?auto=format&fit=crop&q=80&w=800' },
-  { id: 'sagrada', name: 'Sagrada Família', location: 'Barcelona, Spain', image: SKY_BLUE_CANVAS }, 
+  { id: 'sagrada', name: 'Sagrada Família', location: 'Barcelona, Spain', image: './images/sagrada.png' }, 
   { id: 'colosseum', name: 'Colosseum', location: 'Rome, Italy', image: 'https://images.unsplash.com/photo-1552832230-c0197dd311b5?auto=format&fit=crop&q=80&w=800' },
-  { id: 'stpauls', name: "St Paul's Cathedral", location: 'London, UK', image: SKY_BLUE_CANVAS },
-  { id: 'tajmahal', name: 'Taj Mahal', location: 'Agra, India', image: SKY_BLUE_CANVAS },
+  { id: 'stpauls', name: "St Paul's Cathedral", location: 'London, UK', image: './images/stpaul.png' },
+  { id: 'tajmahal', name: 'Taj Mahal', location: 'Agra, India', image: './images/tajmahal.png' },
   { id: 'greatwall', name: 'Great Wall of China', location: 'Huairou, China', image: 'https://images.unsplash.com/photo-1508804185872-d7badad00f7d?auto=format&fit=crop&q=80&w=800' },
 ];
 
