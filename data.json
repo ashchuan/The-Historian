@@ -1,0 +1,62 @@
+
+{
+  "version": "1.0",
+  "timestamp": 1738740000000,
+  "landmarks": [
+    {
+      "id": "eiffel",
+      "name": "Eiffel Tower",
+      "location": "Paris, France",
+      "isCustom": false,
+      "timeline": [
+        {
+          "year": 1887,
+          "title": "Foundations of an Icon",
+          "description": "Gustave Eiffel's vision begins to take shape as the massive iron foundations are laid in the Champ de Mars, amidst significant public skepticism from the Parisian artistic elite.",
+          "visualPrompt": "The construction site of the Eiffel Tower base, massive iron legs rising, cranes and 19th-century laborers, sepia tone.",
+          "isGenerated": false,
+          "isPanoramic": true
+        },
+        {
+          "year": 1889,
+          "title": "Universal Exposition",
+          "description": "The tower is inaugurated as the centerpiece of the 1889 World's Fair, standing as the tallest man-made structure in the world, dazzling visitors with its modern engineering.",
+          "visualPrompt": "The completed Eiffel Tower at the 1889 World's Fair, crowds in period clothing, flags and festive atmosphere.",
+          "isGenerated": false,
+          "isPanoramic": true
+        }
+      ],
+      "sources": [
+        { "title": "Official Eiffel Tower History", "url": "https://www.toureiffel.paris/en/the-monument/history" }
+      ]
+    },
+    {
+      "id": "stpauls",
+      "name": "St Paul's Cathedral",
+      "location": "London, UK",
+      "isCustom": false,
+      "timeline": [
+        {
+          "year": 1675,
+          "title": "Wren's Reconstruction",
+          "description": "Following the Great Fire of London, Sir Christopher Wren begins work on his masterpiece, a testament to the city's resilience and the English Baroque style.",
+          "visualPrompt": "St Paul's Cathedral under construction, scaffolding surrounding the nascent dome, 17th-century London skyline.",
+          "isGenerated": false,
+          "isPanoramic": true
+        },
+        {
+          "year": 1940,
+          "title": "The London Blitz",
+          "description": "The Cathedral stands tall amidst the smoke and destruction of World War II, becoming a powerful symbol of British hope and survival during the intense bombing of the city.",
+          "visualPrompt": "St Paul's dome surrounded by smoke and fire from the Blitz, searchlights in the night sky.",
+          "isGenerated": false,
+          "isPanoramic": true
+        }
+      ],
+      "sources": [
+        { "title": "St Paul's Cathedral Archives", "url": "https://www.stpauls.co.uk/history-collections" }
+      ]
+    }
+  ],
+  "papers": []
+}

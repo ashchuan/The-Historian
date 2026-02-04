@@ -85,7 +85,30 @@ const App: React.FC = () => {
   }, [viewMode, isSetupComplete, stickerSheetUrl, isAboutVisible]);
 
   const loadInitialData = async () => {
-    const all = await storageService.getAllLandmarks();
+    let all = await storageService.getAllLandmarks();
+    
+    // Automatic Archive Seeding Logic
+    if (all.length === 0) {
+      try {
+        console.log("Archive empty. Attempting to seed from data.json...");
+        const response = await fetch('./data.json');
+        if (response.ok) {
+          const seedData = await response.json();
+          if (seedData.landmarks) {
+            for (const l of seedData.landmarks) await storageService.saveLandmark(l);
+          }
+          if (seedData.papers) {
+            for (const p of seedData.papers) await storageService.saveResearchPaper(p);
+          }
+          console.log("Temporal Archive Seeded successfully.");
+          // Reload data after seeding
+          all = await storageService.getAllLandmarks();
+        }
+      } catch (err) {
+        console.warn("Could not fetch seed data.json:", err);
+      }
+    }
+
     setSavedLandmarks(all);
     
     const allPapers = await storageService.getAllResearchPapers();
