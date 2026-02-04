@@ -25,6 +25,16 @@ const openDB = (): Promise<IDBDatabase> => {
   });
 };
 
+export const clearAllData = async (): Promise<void> => {
+  const db = await openDB();
+  const tx = db.transaction([STORE_NAME, RESEARCH_STORE], "readwrite");
+  tx.objectStore(STORE_NAME).clear();
+  tx.objectStore(RESEARCH_STORE).clear();
+  return new Promise((resolve) => {
+    tx.oncomplete = () => resolve();
+  });
+};
+
 export const saveLandmark = async (data: LandmarkData): Promise<void> => {
   try {
     const db = await openDB();

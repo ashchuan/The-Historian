@@ -90,22 +90,36 @@ const App: React.FC = () => {
     // Automatic Archive Seeding Logic
     if (all.length === 0) {
       try {
-        console.log("Archive empty. Attempting to seed from data.json...");
+        console.group("🕰️ The Historian: Archive Seeding");
+        console.log("Checking storage... Archive is empty.");
+        console.log("Fetching local manifest: data.json");
         const response = await fetch('./data.json');
         if (response.ok) {
           const seedData = await response.json();
+          console.log("Manifest loaded. Ingesting records...");
+          
           if (seedData.landmarks) {
-            for (const l of seedData.landmarks) await storageService.saveLandmark(l);
+            for (const l of seedData.landmarks) {
+              await storageService.saveLandmark(l);
+              console.log(`✅ Seeded Landmark: ${l.name}`);
+            }
           }
           if (seedData.papers) {
-            for (const p of seedData.papers) await storageService.saveResearchPaper(p);
+            for (const p of seedData.papers) {
+              await storageService.saveResearchPaper(p);
+              console.log(`✅ Seeded Research: ${p.title}`);
+            }
           }
           console.log("Temporal Archive Seeded successfully.");
-          // Reload data after seeding
+          // Refresh list after seeding
           all = await storageService.getAllLandmarks();
+        } else {
+          console.warn("data.json not found or inaccessible. Skipping seed.");
         }
+        console.groupEnd();
       } catch (err) {
-        console.warn("Could not fetch seed data.json:", err);
+        console.error("Archive injection failed:", err);
+        console.groupEnd();
       }
     }
 
@@ -114,6 +128,7 @@ const App: React.FC = () => {
     const allPapers = await storageService.getAllResearchPapers();
     setResearchPapers(allPapers.sort((a, b) => b.timestamp - a.timestamp));
 
+    // Re-evaluate statuses based on the potentially newly seeded data
     const status: Record<string, 'ready' | 'loading' | 'idle'> = {};
     const memoryCache: Record<string, LandmarkData> = {};
     
@@ -164,7 +179,18 @@ const App: React.FC = () => {
     }
   };
 
-  // Archive Export/Import Logic
+  const handleClearArchive = async () => {
+    if (window.confirm("CRITICAL: This will permanently purge your local archive to free up storage space. All custom discoveries will be lost. Proceed?")) {
+      try {
+        await storageService.clearAllData();
+        alert("Archive Purged. Reloading temporal engine...");
+        window.location.reload();
+      } catch (err) {
+        alert("Failed to purge archive.");
+      }
+    }
+  };
+
   const handleExportArchive = async () => {
     try {
       const landmarks = await storageService.getAllLandmarks();
@@ -886,6 +912,17 @@ const App: React.FC = () => {
               <div className="flex flex-col">
                 <span className="font-bold">Import Archive</span>
                 <span className="text-[10px] opacity-70">Restore JSON backup</span>
+              </div>
+            </button>
+
+            <button 
+              onClick={handleClearArchive}
+              className="w-full flex items-center gap-3 px-6 py-4 text-left text-sm text-slate-300 hover:bg-red-500 hover:text-white transition-all group border-t border-white/5"
+            >
+              <Trash2 size={18} className="text-red-500 group-hover:text-white transition-colors" />
+              <div className="flex flex-col">
+                <span className="font-bold">Purge Cache</span>
+                <span className="text-[10px] opacity-70 text-red-400 group-hover:text-white">Free up storage</span>
               </div>
             </button>
 
