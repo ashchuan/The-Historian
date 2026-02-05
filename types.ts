@@ -49,11 +49,6 @@ export interface LandmarkData {
   fullReport?: ResearchPaper;
 }
 
-export interface StorageConfig {
-  url: string;
-  accessKey?: string;
-}
-
 export interface LoadingState {
   status: 'idle' | 'identifying' | 'planning' | 'visualizing' | 'narrating' | 'ready' | 'error';
   message?: string;
