@@ -16,10 +16,10 @@ const SKY_BLUE_CANVAS = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000
 
 const PRESETS = [
   { id: 'eiffel', name: 'Eiffel Tower', location: 'Paris, France', image: 'https://images.unsplash.com/photo-1511739001486-6bfe10ce785f?auto=format&fit=crop&q=80&w=800' },
-  { id: 'sagrada', name: 'Sagrada Família', location: 'Barcelona, Spain', image: '/images/sagrada.png' },
+  { id: 'sagrada', name: 'Sagrada Família', location: 'Barcelona, Spain', image: '/preset-assets/sagrada.png' },
   { id: 'colosseum', name: 'Colosseum', location: 'Rome, Italy', image: 'https://images.unsplash.com/photo-1552832230-c0197dd311b5?auto=format&fit=crop&q=80&w=800' },
-  { id: 'stpauls', name: "St Paul's Cathedral", location: 'London, UK', image: '/images/stpaul.png' },
-  { id: 'tajmahal', name: 'Taj Mahal', location: 'Agra, India', image: '/images/tajmahal.png' },
+  { id: 'stpauls', name: "St Paul's Cathedral", location: 'London, UK', image: '/preset-assets/stpaul.png' },
+  { id: 'tajmahal', name: 'Taj Mahal', location: 'Agra, India', image: '/preset-assets/tajmahal.png' },
   { id: 'greatwall', name: 'Great Wall of China', location: 'Huairou, China', image: 'https://images.unsplash.com/photo-1508804185872-d7badad00f7d?auto=format&fit=crop&q=80&w=800' },
 ];
 
@@ -45,6 +45,9 @@ const App: React.FC = () => {
   // Pre-generation status tracking
   const [presetStatus, setPresetStatus] = useState<Record<string, 'ready' | 'loading' | 'idle'>>({});
   const [pregeneratedLandmarks, setPregeneratedLandmarks] = useState<Record<string, LandmarkData>>({});
+  const [isSeeding, setIsSeeding] = useState<boolean>(false);
+  const isInitialLoadRunning = useRef<boolean>(false);
+  const isSyncing = useRef<boolean>(false);
 
   const [transform, setTransform] = useState({ scale: 1, x: 0, y: 0, rx: 0, ry: 0, rz: 0 });
   const [tilt, setTilt] = useState({ x: 0, y: 0 });
@@ -60,98 +63,113 @@ const App: React.FC = () => {
   }, []);
 
   const checkApiKeyStatus = async () => {
-    // @ts-ignore
-    if (window.aistudio && typeof window.aistudio.hasSelectedApiKey === 'function') {
-      const hasKey = await window.aistudio.hasSelectedApiKey();
-      setIsSetupComplete(hasKey);
-    } else {
-      setIsSetupComplete(true);
-    }
+    // Check if API key is provided via environment variables
+    const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
+    setIsSetupComplete(!!apiKey);
   };
 
   const handleOpenKeySelection = async () => {
-    // @ts-ignore
-    if (window.aistudio && typeof window.aistudio.openSelectKey === 'function') {
-      await window.aistudio.openSelectKey();
-    }
     setIsSetupComplete(true);
   };
 
   useEffect(() => {
     document.body.style.overflow = (viewMode === ViewMode.EXPERIENCE || stickerSheetUrl || isAboutVisible) ? 'hidden' : 'auto';
-    if (viewMode === ViewMode.HOME && isSetupComplete) {
+    if (viewMode === ViewMode.HOME) {
       loadInitialData();
     }
   }, [viewMode, isSetupComplete, stickerSheetUrl, isAboutVisible]);
 
+  useEffect(() => {
+    if (viewMode === ViewMode.HOME && isSetupComplete && !isSeeding && !isInitialLoadRunning.current && Object.keys(presetStatus).length > 0) {
+      if (!isSyncing.current) {
+        triggerParallelSync(presetStatus);
+      }
+    }
+  }, [viewMode, isSetupComplete, isSeeding, presetStatus]);
+
   const loadInitialData = async () => {
-    let all = await storageService.getAllLandmarks();
+    if (isInitialLoadRunning.current) return;
+    isInitialLoadRunning.current = true;
 
-    // Automatic Archive Seeding Logic
-    if (all.length === 0) {
+    try {
+      let all = [];
       try {
-        console.group("🕰️ The Historian: Archive Seeding");
-        console.log("Checking storage... Archive is empty.");
-        console.log("Fetching local manifest: data.json");
-        const response = await fetch('./data.json');
-        if (response.ok) {
-          const seedData = await response.json();
-          console.log("Manifest loaded. Ingesting records...");
-
-          if (seedData.landmarks) {
-            for (const l of seedData.landmarks) {
-              await storageService.saveLandmark(l);
-              console.log(`✅ Seeded Landmark: ${l.name}`);
-            }
-          }
-          if (seedData.papers) {
-            for (const p of seedData.papers) {
-              await storageService.saveResearchPaper(p);
-              console.log(`✅ Seeded Research: ${p.title}`);
-            }
-          }
-          console.log("Temporal Archive Seeded successfully.");
-          // Refresh list after seeding
-          all = await storageService.getAllLandmarks();
-        } else {
-          console.warn("data.json not found or inaccessible. Skipping seed.");
-        }
-        console.groupEnd();
+        all = await storageService.getAllLandmarks();
       } catch (err) {
-        console.error("Archive injection failed:", err);
-        console.groupEnd();
+        console.error("Failed to read archive:", err);
       }
-    }
 
-    setSavedLandmarks(all);
+      // Automatic Archive Seeding Logic
+      if (all.length === 0) {
+        setIsSeeding(true);
+        try {
+          console.group("🕰️ The Historian: Archive Seeding");
+          console.log("Checking storage... Archive is empty.");
+          console.log("Fetching local manifest: data.json");
+          const response = await fetch('./data.json');
+          if (response.ok) {
+            const seedData = await response.json();
+            console.log("Manifest loaded. Ingesting records...");
 
-    const allPapers = await storageService.getAllResearchPapers();
-    setResearchPapers(allPapers.sort((a, b) => b.timestamp - a.timestamp));
-
-    // Re-evaluate statuses based on the potentially newly seeded data
-    const status: Record<string, 'ready' | 'loading' | 'idle'> = {};
-    const memoryCache: Record<string, LandmarkData> = {};
-
-    for (const preset of PRESETS) {
-      const cached = all.find(l => l.id === preset.id);
-      if (cached) {
-        status[preset.id] = 'ready';
-        memoryCache[preset.id] = cached;
-      } else {
-        status[preset.id] = 'idle';
+            if (seedData.landmarks) {
+              await storageService.saveLandmarks(seedData.landmarks);
+              console.log(`✅ Seeded ${seedData.landmarks.length} Landmarks`);
+            }
+            if (seedData.papers) {
+              await storageService.saveResearchPapers(seedData.papers);
+              console.log(`✅ Seeded ${seedData.papers.length} Research Papers`);
+            }
+            console.log("Temporal Archive Seeded successfully.");
+            // Refresh list after seeding
+            all = await storageService.getAllLandmarks();
+          } else {
+            console.warn("data.json not found or inaccessible. Skipping seed.");
+          }
+          console.groupEnd();
+        } catch (err) {
+          console.error("Archive injection failed:", err);
+          console.groupEnd();
+        } finally {
+          setIsSeeding(false);
+        }
       }
-    }
-    setPresetStatus(status);
-    setPregeneratedLandmarks(memoryCache);
 
-    if (isSetupComplete) {
-      triggerParallelSync(status);
+      setSavedLandmarks(all);
+
+      const allPapers = await storageService.getAllResearchPapers();
+      setResearchPapers(allPapers.sort((a, b) => b.timestamp - a.timestamp));
+
+      // Re-evaluate statuses based on the potentially newly seeded data
+      const status: Record<string, 'ready' | 'loading' | 'idle'> = {};
+      const memoryCache: Record<string, LandmarkData> = {};
+
+      for (const preset of PRESETS) {
+        const cached = all.find(l => l.id === preset.id);
+        if (cached) {
+          status[preset.id] = 'ready';
+          memoryCache[preset.id] = cached;
+        } else {
+          status[preset.id] = 'idle';
+        }
+      }
+      setPresetStatus(status);
+      setPregeneratedLandmarks(memoryCache);
+    } finally {
+      isInitialLoadRunning.current = false;
     }
   };
 
   const triggerParallelSync = async (currentStatus: Record<string, 'ready' | 'loading' | 'idle'>) => {
+    if (isSyncing.current) return;
     const idlePresets = PRESETS.filter(p => currentStatus[p.id] === 'idle');
-    await Promise.allSettled(idlePresets.map(preset => pregeneratePreset(preset)));
+    if (idlePresets.length === 0) return;
+
+    isSyncing.current = true;
+    try {
+      await Promise.allSettled(idlePresets.map(preset => pregeneratePreset(preset)));
+    } finally {
+      isSyncing.current = false;
+    }
   };
 
   const pregeneratePreset = async (preset: typeof PRESETS[0]) => {
@@ -229,10 +247,10 @@ const App: React.FC = () => {
         }
 
         if (json.landmarks) {
-          for (const l of json.landmarks) await storageService.saveLandmark(l);
+          await storageService.saveLandmarks(json.landmarks);
         }
         if (json.papers) {
-          for (const p of json.papers) await storageService.saveResearchPaper(p);
+          await storageService.saveResearchPapers(json.papers);
         }
 
         alert("Discovery Archive Successfully Integrated. Temporal stream updated.");

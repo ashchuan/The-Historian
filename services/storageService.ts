@@ -50,6 +50,23 @@ export const saveLandmark = async (data: LandmarkData): Promise<void> => {
   }
 };
 
+export const saveLandmarks = async (data: LandmarkData[]): Promise<void> => {
+  try {
+    const db = await openDB();
+    const tx = db.transaction(STORE_NAME, "readwrite");
+    const store = tx.objectStore(STORE_NAME);
+    for (const item of data) {
+      store.put(item);
+    }
+    return new Promise((resolve, reject) => {
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  } catch (error) {
+    console.error("Failed to bulk save landmarks to IndexedDB", error);
+  }
+};
+
 export const getLandmark = async (id: string): Promise<LandmarkData | null> => {
   try {
     const db = await openDB();
@@ -103,6 +120,19 @@ export const saveResearchPaper = async (paper: ResearchPaper): Promise<void> => 
   const tx = db.transaction(RESEARCH_STORE, "readwrite");
   const store = tx.objectStore(RESEARCH_STORE);
   store.put(paper);
+};
+
+export const saveResearchPapers = async (papers: ResearchPaper[]): Promise<void> => {
+  const db = await openDB();
+  const tx = db.transaction(RESEARCH_STORE, "readwrite");
+  const store = tx.objectStore(RESEARCH_STORE);
+  for (const paper of papers) {
+    store.put(paper);
+  }
+  return new Promise((resolve, reject) => {
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
 };
 
 export const getResearchPaper = async (id: string): Promise<ResearchPaper | null> => {
