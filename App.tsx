@@ -16,10 +16,10 @@ const SKY_BLUE_CANVAS = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000
 
 const PRESETS = [
   { id: 'eiffel', name: 'Eiffel Tower', location: 'Paris, France', image: 'https://images.unsplash.com/photo-1511739001486-6bfe10ce785f?auto=format&fit=crop&q=80&w=800' },
-  { id: 'sagrada', name: 'Sagrada Família', location: 'Barcelona, Spain', image: './images/sagrada.png' }, 
+  { id: 'sagrada', name: 'Sagrada Família', location: 'Barcelona, Spain', image: '/images/sagrada.png' },
   { id: 'colosseum', name: 'Colosseum', location: 'Rome, Italy', image: 'https://images.unsplash.com/photo-1552832230-c0197dd311b5?auto=format&fit=crop&q=80&w=800' },
-  { id: 'stpauls', name: "St Paul's Cathedral", location: 'London, UK', image: './images/stpaul.png' },
-  { id: 'tajmahal', name: 'Taj Mahal', location: 'Agra, India', image: './images/tajmahal.png' },
+  { id: 'stpauls', name: "St Paul's Cathedral", location: 'London, UK', image: '/images/stpaul.png' },
+  { id: 'tajmahal', name: 'Taj Mahal', location: 'Agra, India', image: '/images/tajmahal.png' },
   { id: 'greatwall', name: 'Great Wall of China', location: 'Huairou, China', image: 'https://images.unsplash.com/photo-1508804185872-d7badad00f7d?auto=format&fit=crop&q=80&w=800' },
 ];
 
@@ -30,7 +30,7 @@ const App: React.FC = () => {
   const [savedLandmarks, setSavedLandmarks] = useState<LandmarkData[]>([]);
   const [researchPapers, setResearchPapers] = useState<ResearchPaper[]>([]);
   const [loadingState, setLoadingState] = useState<LoadingState>({ status: 'idle' });
-  const [currentProgress, setCurrentProgress] = useState(0); 
+  const [currentProgress, setCurrentProgress] = useState(0);
   const [isInfoVisible, setIsInfoVisible] = useState(false);
   const [isPanoramicMode, setIsPanoramicMode] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -45,7 +45,7 @@ const App: React.FC = () => {
   // Pre-generation status tracking
   const [presetStatus, setPresetStatus] = useState<Record<string, 'ready' | 'loading' | 'idle'>>({});
   const [pregeneratedLandmarks, setPregeneratedLandmarks] = useState<Record<string, LandmarkData>>({});
-  
+
   const [transform, setTransform] = useState({ scale: 1, x: 0, y: 0, rx: 0, ry: 0, rz: 0 });
   const [tilt, setTilt] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
@@ -86,7 +86,7 @@ const App: React.FC = () => {
 
   const loadInitialData = async () => {
     let all = await storageService.getAllLandmarks();
-    
+
     // Automatic Archive Seeding Logic
     if (all.length === 0) {
       try {
@@ -97,7 +97,7 @@ const App: React.FC = () => {
         if (response.ok) {
           const seedData = await response.json();
           console.log("Manifest loaded. Ingesting records...");
-          
+
           if (seedData.landmarks) {
             for (const l of seedData.landmarks) {
               await storageService.saveLandmark(l);
@@ -124,14 +124,14 @@ const App: React.FC = () => {
     }
 
     setSavedLandmarks(all);
-    
+
     const allPapers = await storageService.getAllResearchPapers();
     setResearchPapers(allPapers.sort((a, b) => b.timestamp - a.timestamp));
 
     // Re-evaluate statuses based on the potentially newly seeded data
     const status: Record<string, 'ready' | 'loading' | 'idle'> = {};
     const memoryCache: Record<string, LandmarkData> = {};
-    
+
     for (const preset of PRESETS) {
       const cached = all.find(l => l.id === preset.id);
       if (cached) {
@@ -159,7 +159,7 @@ const App: React.FC = () => {
     try {
       const { timeline: timelineEvents, sources } = await geminiService.generateTimelinePlan(preset.name, preset.location);
       const audioNarrative = await geminiService.generateNarration(preset.name, timelineEvents);
-      
+
       const newLandmark: LandmarkData = {
         id: preset.id,
         name: preset.name,
@@ -201,7 +201,7 @@ const App: React.FC = () => {
         landmarks,
         papers
       };
-      
+
       const blob = new Blob([JSON.stringify(archiveData, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -306,9 +306,9 @@ const App: React.FC = () => {
 
   const startExperience = async (base64Image: string | undefined, isCustom: boolean, presetData?: any, ignoreCache = false) => {
     const id = presetData?.id || 'unknown';
-    
+
     if (viewMode !== ViewMode.EXPERIENCE) {
-       setPresetStatus(prev => ({ ...prev, [id]: 'loading' }));
+      setPresetStatus(prev => ({ ...prev, [id]: 'loading' }));
     }
 
     if (!ignoreCache && pregeneratedLandmarks[id]) {
@@ -343,14 +343,14 @@ const App: React.FC = () => {
 
       setLoadingState({ status: 'planning', message: `Researching ${name}...`, progress: 30 });
       const { timeline: timelineEvents, sources } = await geminiService.generateTimelinePlan(name, location);
-      
+
       const newLandmark: LandmarkData = {
         id, name, location, originalImage: base64Image, timeline: timelineEvents, isCustom, userNotes: [], sources
       };
       setLandmarkData(newLandmark);
 
       setLoadingState({ status: 'visualizing', message: 'Visualizing history & narration...', progress: 60 });
-      
+
       const [firstImageBase64, audioNarrative] = await Promise.all([
         geminiService.generateHistoricalImage(timelineEvents[0], name, base64Image),
         geminiService.generateNarration(name, timelineEvents)
@@ -400,21 +400,21 @@ const App: React.FC = () => {
 
       setLoadingState({ status: 'planning', message: 'Synthesizing historical moments...', progress: 30 });
       const timelineEvents = await geminiService.generateTimelineFromResearch(paper.topic, paper.content);
-      
+
       const newLandmark: LandmarkData = {
-        id, 
-        name: paper.title, 
-        location: "Historical Records", 
-        timeline: timelineEvents, 
-        isCustom: true, 
-        userNotes: [], 
+        id,
+        name: paper.title,
+        location: "Historical Records",
+        timeline: timelineEvents,
+        isCustom: true,
+        userNotes: [],
         sources: paper.sources,
-        fullReport: paper 
+        fullReport: paper
       };
       setLandmarkData(newLandmark);
 
       setLoadingState({ status: 'visualizing', message: 'Generating visualizations...', progress: 60 });
-      
+
       const referenceImg = paper.images.length > 0 ? paper.images[0].split(',')[1] : undefined;
       const [firstImageBase64, audioNarrative] = await Promise.all([
         geminiService.generateHistoricalImage(timelineEvents[0], paper.title, referenceImg),
@@ -545,16 +545,16 @@ const App: React.FC = () => {
     if (isPanoramicMode) return;
     if (!isDragging && containerRef.current) {
       const rect = containerRef.current.getBoundingClientRect();
-      setTilt({ 
-        x: ((e.clientY - (rect.top + rect.height/2)) / (rect.height/2)) * -4, 
-        y: ((e.clientX - (rect.left + rect.width/2)) / (rect.width/2)) * 4 
+      setTilt({
+        x: ((e.clientY - (rect.top + rect.height / 2)) / (rect.height / 2)) * -4,
+        y: ((e.clientX - (rect.left + rect.width / 2)) / (rect.width / 2)) * 4
       });
     }
     if (isDragging) {
-      setTransform(prev => ({ 
-        ...prev, 
-        x: prev.x + (e.clientX - lastMousePos.current.x), 
-        y: prev.y + (e.clientY - lastMousePos.current.y) 
+      setTransform(prev => ({
+        ...prev,
+        x: prev.x + (e.clientX - lastMousePos.current.x),
+        y: prev.y + (e.clientY - lastMousePos.current.y)
       }));
       lastMousePos.current = { x: e.clientX, y: e.clientY };
     }
@@ -625,35 +625,35 @@ const App: React.FC = () => {
                 {researchDiscoveryLandmarks.map(landmark => (
                   <div key={landmark.id} className="group relative h-80 rounded-2xl overflow-hidden shadow-2xl border border-white/5 transition-all hover:scale-[1.02]">
                     <div className="absolute inset-0 w-full h-full">
-                      <img 
-                        src={landmark.originalImage ? `data:image/jpeg;base64,${landmark.originalImage}` : (landmark.timeline[landmark.timeline.length-1]?.imageUrl || SKY_BLUE_CANVAS)} 
-                        alt={landmark.name} 
-                        className="absolute inset-0 w-full h-full object-cover brightness-75 group-hover:brightness-90 transition-all" 
+                      <img
+                        src={landmark.originalImage ? `data:image/jpeg;base64,${landmark.originalImage}` : (landmark.timeline[landmark.timeline.length - 1]?.imageUrl || SKY_BLUE_CANVAS)}
+                        alt={landmark.name}
+                        className="absolute inset-0 w-full h-full object-cover brightness-75 group-hover:brightness-90 transition-all"
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent flex flex-col justify-end p-8 transition-all group-hover:from-amber-950/80">
                         <h3 className="text-2xl font-serif text-white group-hover:text-amber-400 mb-2">{landmark.name}</h3>
                         <div className="flex items-center gap-2 text-slate-300 text-sm tracking-widest uppercase"><MapPin size={16} className="text-amber-500" />{landmark.location}</div>
                       </div>
                     </div>
-                    
-                    <button 
+
+                    <button
                       onClick={() => {
                         setLandmarkData(landmark);
                         setViewMode(ViewMode.EXPERIENCE);
                         setLoadingState({ status: 'ready', progress: 100 });
-                      }} 
+                      }}
                       className="absolute inset-0 z-10 w-full h-full cursor-pointer text-left bg-transparent border-none appearance-none"
                     />
-                    
+
                     <div className="absolute top-4 right-4 z-20 flex gap-2 opacity-0 group-hover:opacity-100 transition-all">
-                      <button 
+                      <button
                         onClick={(e) => handleGenerateStickers(landmark.name, e)}
                         className="p-3 bg-amber-500 backdrop-blur-md rounded-full text-slate-900 shadow-lg active:scale-95 hover:bg-amber-400"
                         title="Print Stickers"
                       >
                         <Printer size={18} />
                       </button>
-                      <button 
+                      <button
                         type="button"
                         onClick={(e) => handleDeleteSaved(landmark.id, e)}
                         className="p-3 bg-red-600/90 hover:bg-red-500 text-white rounded-full shadow-2xl active:scale-95"
@@ -675,8 +675,8 @@ const App: React.FC = () => {
                 const status = presetStatus[preset.id] || 'idle';
                 return (
                   <div key={preset.id} className="group relative h-80 rounded-2xl overflow-hidden shadow-2xl hover:scale-[1.02] transition-all border border-white/5">
-                    <button 
-                      onClick={() => startExperience(undefined, false, preset)} 
+                    <button
+                      onClick={() => startExperience(undefined, false, preset)}
                       className="absolute inset-0 w-full h-full text-left z-10"
                       disabled={status === 'loading'}
                     >
@@ -686,29 +686,29 @@ const App: React.FC = () => {
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2 text-slate-300 text-sm tracking-widest uppercase"><MapPin size={16} className="text-amber-500" />{preset.location}</div>
                           <div className="flex items-center gap-2">
-                             {status === 'loading' ? (
-                               <div className="flex items-center gap-1.5 text-amber-400 text-[10px] font-bold uppercase tracking-widest animate-pulse bg-black/60 px-2 py-1 rounded-md"><Loader2 size={12} className="animate-spin" /> Loading</div>
-                             ) : status === 'ready' ? (
-                               <div className="flex items-center gap-1 text-green-500 text-[10px] font-bold uppercase tracking-widest bg-black/60 px-2 py-1 rounded-md shadow-lg border border-green-500/30"><CheckCircle2 size={12} /> Ready</div>
-                             ) : (
-                               <div className="flex items-center gap-1 text-amber-200 text-[10px] font-bold uppercase tracking-widest bg-black/40 px-2 py-1 rounded-md border border-white/5 opacity-80"><Globe size={12} /> On Demand</div>
-                             )}
+                            {status === 'loading' ? (
+                              <div className="flex items-center gap-1.5 text-amber-400 text-[10px] font-bold uppercase tracking-widest animate-pulse bg-black/60 px-2 py-1 rounded-md"><Loader2 size={12} className="animate-spin" /> Loading</div>
+                            ) : status === 'ready' ? (
+                              <div className="flex items-center gap-1 text-green-500 text-[10px] font-bold uppercase tracking-widest bg-black/60 px-2 py-1 rounded-md shadow-lg border border-green-500/30"><CheckCircle2 size={12} /> Ready</div>
+                            ) : (
+                              <div className="flex items-center gap-1 text-amber-200 text-[10px] font-bold uppercase tracking-widest bg-black/40 px-2 py-1 rounded-md border border-white/5 opacity-80"><Globe size={12} /> On Demand</div>
+                            )}
                           </div>
                         </div>
                       </div>
                     </button>
                     <div className="absolute top-4 right-4 z-20 flex gap-2 opacity-0 group-hover:opacity-100 transition-all">
-                      <button 
+                      <button
                         onClick={(e) => handleGenerateStickers(preset.name, e)}
                         className="p-3 bg-amber-500 backdrop-blur-md rounded-full text-slate-900 shadow-lg active:scale-95 hover:bg-amber-400"
                         title="Print Stickers"
                       >
                         <Printer size={16} />
                       </button>
-                      <button 
-                        onClick={(e) => handleRefreshPreset(preset, e)} 
-                        className="p-3 bg-slate-900/60 hover:bg-amber-500 backdrop-blur-md rounded-full text-white/70 hover:text-slate-950 shadow-lg active:scale-95 transition-all" 
-                        title="Regenerate Journey" 
+                      <button
+                        onClick={(e) => handleRefreshPreset(preset, e)}
+                        className="p-3 bg-slate-900/60 hover:bg-amber-500 backdrop-blur-md rounded-full text-white/70 hover:text-slate-950 shadow-lg active:scale-95 transition-all"
+                        title="Regenerate Journey"
                         disabled={status === 'loading'}
                       >
                         <RefreshCw size={16} className={status === 'loading' ? 'animate-spin' : ''} />
@@ -736,9 +736,9 @@ const App: React.FC = () => {
     if (loadingState.status === 'error') {
       return (
         <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-slate-950 p-6 text-center">
-           <h2 className="text-3xl font-serif text-red-400 mb-6 uppercase tracking-widest">Temporal Paradox</h2>
-           <p className="mb-8 opacity-80 font-light max-w-lg">{loadingState.message}</p>
-           <button onClick={reset} className="px-10 py-4 bg-slate-800 hover:bg-amber-500 rounded-full font-bold uppercase text-xs tracking-widest transition-all">Return to Origin</button>
+          <h2 className="text-3xl font-serif text-red-400 mb-6 uppercase tracking-widest">Temporal Paradox</h2>
+          <p className="mb-8 opacity-80 font-light max-w-lg">{loadingState.message}</p>
+          <button onClick={reset} className="px-10 py-4 bg-slate-800 hover:bg-amber-500 rounded-full font-bold uppercase text-xs tracking-widest transition-all">Return to Origin</button>
         </div>
       );
     }
@@ -754,7 +754,7 @@ const App: React.FC = () => {
               <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" /> Back
             </button>
             <h1 className="text-4xl md:text-5xl font-serif text-white mb-1">{landmarkData.name}</h1>
-            <p className="text-amber-400 font-light flex items-center gap-2 tracking-widest uppercase text-xs"><MapPin size={14}/> {landmarkData.location}</p>
+            <p className="text-amber-400 font-light flex items-center gap-2 tracking-widest uppercase text-xs"><MapPin size={14} /> {landmarkData.location}</p>
           </div>
           <div className="pointer-events-auto flex items-center gap-3">
             {landmarkData.isCustom && (
@@ -765,13 +765,13 @@ const App: React.FC = () => {
             )}
             <button onClick={handleRegenerate} className="flex items-center justify-center w-12 h-12 rounded-full bg-slate-900/80 border border-white/10 text-amber-500 hover:bg-amber-500 hover:text-slate-900 transition-all"><RefreshCw size={20} /></button>
             {landmarkData.audioNarrative && <AudioPlayer audioBase64={landmarkData.audioNarrative} />}
-            
+
             {landmarkData.fullReport && (
-              <button 
-                onClick={() => generatePDF(landmarkData.fullReport!)} 
+              <button
+                onClick={() => generatePDF(landmarkData.fullReport!)}
                 className="px-6 py-3 rounded-full font-bold transition-all border bg-slate-900/80 text-amber-500 border-amber-500/30 hover:bg-amber-500 hover:text-slate-900 flex items-center gap-2 shadow-xl"
               >
-                <Download size={18} /> 
+                <Download size={18} />
                 <span className="uppercase tracking-widest text-xs">Download Dossier</span>
               </button>
             )}
@@ -793,20 +793,20 @@ const App: React.FC = () => {
 
         <UserNotesManager landmarkName={landmarkData.name} yearContext={currentEvent?.year || 0} notes={landmarkData.userNotes || []} onSaveNote={handleSaveNote} onDeleteNote={handleDeleteNote} />
 
-        <div ref={containerRef} className="flex-1 relative bg-black overflow-hidden select-none" style={{ perspective: isPanoramicMode ? 'none' : '1200px' }} onWheel={handleWheel} onMouseDown={(e) => { if((transform.scale > 1) && !isPanoramicMode) setIsDragging(true); lastMousePos.current = { x: e.clientX, y: e.clientY }; }} onMouseMove={handleMouseMove} onMouseUp={() => setIsDragging(false)} onMouseLeave={() => { setIsDragging(false); setTilt({ x: 0, y: 0 }); }}>
+        <div ref={containerRef} className="flex-1 relative bg-black overflow-hidden select-none" style={{ perspective: isPanoramicMode ? 'none' : '1200px' }} onWheel={handleWheel} onMouseDown={(e) => { if ((transform.scale > 1) && !isPanoramicMode) setIsDragging(true); lastMousePos.current = { x: e.clientX, y: e.clientY }; }} onMouseMove={handleMouseMove} onMouseUp={() => setIsDragging(false)} onMouseLeave={() => { setIsDragging(false); setTilt({ x: 0, y: 0 }); }}>
           <div className="absolute inset-0 w-full h-full transition-all duration-700 ease-out" style={{ transform: isPanoramicMode ? 'none' : `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale}) rotateX(${transform.rx + tilt.x}deg) rotateY(${transform.ry + tilt.y}deg)`, transformOrigin: 'center center', transformStyle: 'preserve-3d' }}>
-             {landmarkData.timeline.map((event, idx) => (
-               <TimelineImage 
-                 key={`${landmarkData.id}-${idx}`} 
-                 index={idx} 
-                 event={event} 
-                 landmarkName={landmarkData.name} 
-                 referenceImage={landmarkData.originalImage} 
-                 currentProgress={currentProgress} 
-                 isPanoramicMode={isPanoramicMode} 
-                 onGenerated={(url, hts) => handleLazyImageGenerated(idx, url, hts)} 
-               />
-             ))}
+            {landmarkData.timeline.map((event, idx) => (
+              <TimelineImage
+                key={`${landmarkData.id}-${idx}`}
+                index={idx}
+                event={event}
+                landmarkName={landmarkData.name}
+                referenceImage={landmarkData.originalImage}
+                currentProgress={currentProgress}
+                isPanoramicMode={isPanoramicMode}
+                onGenerated={(url, hts) => handleLazyImageGenerated(idx, url, hts)}
+              />
+            ))}
           </div>
           {isInfoVisible && currentEvent && (
             <>
@@ -820,18 +820,18 @@ const App: React.FC = () => {
                   <div className="mb-12"><span className="text-8xl font-serif text-amber-500/80 drop-shadow-glow">{currentEvent.year}</span><div className="h-1 w-24 bg-amber-500 mt-4 rounded-full"></div></div>
                   <h3 className="text-4xl font-serif text-white mb-8 leading-tight">{currentEvent.title}</h3>
                   <div className="space-y-6 text-slate-300 text-lg font-light mb-12">{currentEvent.description.split('\n').map((para, i) => <p key={i}>{para}</p>)}</div>
-                  
+
                   {currentEvent.hotspots && currentEvent.hotspots.length > 0 && (
                     <div className="mt-12 pt-8 border-t border-white/5">
-                       <h4 className="text-xs font-bold uppercase tracking-[0.2em] text-amber-500 mb-6 flex items-center gap-2"><MapPin size={14} /> Local Reconnaissance</h4>
-                       <div className="space-y-6">
-                         {currentEvent.hotspots.map((hotspot) => (
-                           <div key={hotspot.id} className="group/hotspot">
-                             <h5 className="text-white font-serif text-lg mb-1 group-hover/hotspot:text-amber-400 transition-colors">{hotspot.name}</h5>
-                             <p className="text-sm text-slate-400 font-light leading-relaxed">{hotspot.description}</p>
-                           </div>
-                         ))}
-                       </div>
+                      <h4 className="text-xs font-bold uppercase tracking-[0.2em] text-amber-500 mb-6 flex items-center gap-2"><MapPin size={14} /> Local Reconnaissance</h4>
+                      <div className="space-y-6">
+                        {currentEvent.hotspots.map((hotspot) => (
+                          <div key={hotspot.id} className="group/hotspot">
+                            <h5 className="text-white font-serif text-lg mb-1 group-hover/hotspot:text-amber-400 transition-colors">{hotspot.name}</h5>
+                            <p className="text-sm text-slate-400 font-light leading-relaxed">{hotspot.description}</p>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
 
@@ -858,31 +858,31 @@ const App: React.FC = () => {
   return (
     <>
       {/* Hidden Import Archival File Input */}
-      <input 
-        type="file" 
-        ref={importFileRef} 
-        onChange={handleImportArchive} 
-        accept=".json" 
-        className="hidden" 
+      <input
+        type="file"
+        ref={importFileRef}
+        onChange={handleImportArchive}
+        accept=".json"
+        className="hidden"
       />
 
       {/* Global Top-Right Menu Button */}
       <div className="fixed top-6 right-6 z-[200] flex flex-col items-end gap-3">
-        <button 
+        <button
           onClick={() => setIsMenuOpen(!isMenuOpen)}
           className={`p-3 bg-slate-900/80 backdrop-blur-xl border border-white/10 rounded-xl text-amber-500 hover:bg-amber-500 hover:text-slate-900 transition-all shadow-xl active:scale-95 flex items-center justify-center`}
           aria-label="Open Menu"
         >
           {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
         </button>
-        
+
         {isMenuOpen && (
           <div className="w-64 bg-slate-950/90 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden animate-in slide-in-from-top-4 duration-300 pointer-events-auto">
             <div className="p-3 border-b border-white/5">
               <span className="text-[10px] font-bold uppercase tracking-[0.3em] text-slate-500 px-3">Archive Management</span>
             </div>
-            
-            <button 
+
+            <button
               onClick={() => { setIsAboutVisible(true); setIsMenuOpen(false); }}
               className="w-full flex items-center gap-3 px-6 py-4 text-left text-sm text-slate-300 hover:bg-amber-500 hover:text-slate-950 transition-all group"
             >
@@ -893,7 +893,7 @@ const App: React.FC = () => {
               </div>
             </button>
 
-            <button 
+            <button
               onClick={handleExportArchive}
               className="w-full flex items-center gap-3 px-6 py-4 text-left text-sm text-slate-300 hover:bg-amber-500 hover:text-slate-950 transition-all group"
             >
@@ -904,7 +904,7 @@ const App: React.FC = () => {
               </div>
             </button>
 
-            <button 
+            <button
               onClick={() => { importFileRef.current?.click(); }}
               className="w-full flex items-center gap-3 px-6 py-4 text-left text-sm text-slate-300 hover:bg-amber-500 hover:text-slate-950 transition-all group"
             >
@@ -915,7 +915,7 @@ const App: React.FC = () => {
               </div>
             </button>
 
-            <button 
+            <button
               onClick={handleClearArchive}
               className="w-full flex items-center gap-3 px-6 py-4 text-left text-sm text-slate-300 hover:bg-red-500 hover:text-white transition-all group border-t border-white/5"
             >
@@ -926,7 +926,7 @@ const App: React.FC = () => {
               </div>
             </button>
 
-            <button 
+            <button
               onClick={() => { reset(); setIsMenuOpen(false); }}
               className="w-full flex items-center gap-3 px-6 py-4 text-left text-sm text-slate-300 hover:bg-slate-800 transition-all group border-t border-white/5"
             >
@@ -980,7 +980,7 @@ const App: React.FC = () => {
               </div>
 
               <div className="space-y-4 pt-8 border-t border-white/5">
-                <button 
+                <button
                   disabled={isGeneratingStickers}
                   onClick={handlePrintStickers}
                   className="w-full py-4 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold uppercase tracking-widest text-xs rounded-2xl transition-all shadow-xl flex items-center justify-center gap-3 active:scale-95 disabled:opacity-50"
@@ -988,7 +988,7 @@ const App: React.FC = () => {
                   <Printer size={18} />
                   Send to Printer
                 </button>
-                <button 
+                <button
                   onClick={() => setStickerSheetUrl(null)}
                   className="w-full py-4 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold uppercase tracking-widest text-xs rounded-2xl transition-all"
                 >
@@ -1004,13 +1004,13 @@ const App: React.FC = () => {
       {isAboutVisible && (
         <div className="fixed inset-0 z-[300] flex items-center justify-center bg-slate-950/95 backdrop-blur-xl p-4 md:p-12 overflow-y-auto">
           <div className="relative max-w-4xl w-full bg-slate-900/50 border border-amber-500/20 rounded-[40px] p-10 md:p-20 shadow-[0_0_100px_rgba(0,0,0,0.5)] animate-in zoom-in-95 duration-500 text-slate-200">
-            <button 
+            <button
               onClick={() => setIsAboutVisible(false)}
               className="absolute top-8 right-8 p-3 bg-slate-800/80 hover:bg-amber-500 rounded-full text-slate-400 hover:text-slate-950 transition-all active:scale-95 shadow-lg border border-white/5"
             >
               <X size={24} />
             </button>
-            
+
             <div className="space-y-12 max-w-2xl mx-auto">
               <header className="text-center space-y-4">
                 <div className="inline-block px-4 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-500 text-[10px] font-bold uppercase tracking-[0.4em] mb-4">
@@ -1024,11 +1024,11 @@ const App: React.FC = () => {
                 <p className="text-xl">
                   <span className="font-bold text-amber-200">The Historian</span> redefines history education through immersive technology. The app allows anyone to learn, experience and enjoy history of landmarks by blending panoramic views with chronological storytelling.
                 </p>
-                
+
                 <p className="text-lg opacity-80">
                   The idea is to appeal to an audience of all ages using data already available online, and by augmenting the data using Generative Artificial Intelligence multi-modal capabilities, we aim to provide the following:
                 </p>
-                
+
                 <ul className="space-y-8 text-lg">
                   <li className="flex gap-6 group">
                     <div className="shrink-0 w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500 group-hover:bg-amber-500 group-hover:text-slate-950 transition-all">
@@ -1059,9 +1059,9 @@ const App: React.FC = () => {
                   </li>
                 </ul>
               </div>
-              
+
               <div className="pt-12 border-t border-white/5 text-center">
-                <button 
+                <button
                   onClick={() => setIsAboutVisible(false)}
                   className="px-12 py-4 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold uppercase tracking-[0.3em] text-[10px] rounded-2xl transition-all shadow-xl active:scale-[0.98]"
                 >
