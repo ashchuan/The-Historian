@@ -1,0 +1,10 @@
+steps:
+- name: 'gcr.io/cloud-builders/docker'
+  args: [
+    'build',
+    '--build-arg', 'GEMINI_API_KEY=${_GEMINI_API_KEY}',
+    '-t', 'gcr.io/${PROJECT_ID}/the-historian',
+    '.'
+  ]
+images:
+- 'gcr.io/${PROJECT_ID}/the-historian'
