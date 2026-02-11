@@ -8,7 +8,6 @@ This contains everything you need to run your app locally.
 
 View your app in AI Studio: https://ai.studio/apps/drive/1ZNioCj_LB3jmv7-IcTJEG7XrIbwJxzxb
 
-
 # Run Cloud Run Link (Latest)
 
 https://the-historian-210424609430.us-central1.run.app/
